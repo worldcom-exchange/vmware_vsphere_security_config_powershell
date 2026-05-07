@@ -83,6 +83,7 @@ try {
 
                 $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
 
+                $esxcli = Get-EsxCli -VMhost $vmhost -V2 -ErrorAction Stop
                 $checkSecureBoot = $esxcli.system.settings.encryption.get.Invoke() | Out-Null
 
                 if ($checkSecureBoot.mode -eq "TPM") {
