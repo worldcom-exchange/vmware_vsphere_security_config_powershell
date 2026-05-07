@@ -61,6 +61,8 @@ try {
 
                 $esxcli.system.settings.kernel.set.Invoke($arguments) | Out-Null
 
+                $esxcli = Get-EsxCli -VMhost $vmhost -V2 -ErrorAction Stop
+
                 $arguments = $null
                 $arguments = $esxcli.system.settings.kernel.list.CreateArgs()
                 $arguments.setting = "execInstalledOnly"
