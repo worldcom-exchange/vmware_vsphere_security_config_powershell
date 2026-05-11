@@ -5,10 +5,13 @@ param(
     [Parameter(Mandatory)]
     [string]$clusterName,
 
-    [Parameter(Mandatory)]
+    [Parameter()]
+    [switch]$enableBreakGlassUser,
+
+    [Parameter()]
     [string]$breakGlassUser,
 
-    [Parameter(Mandatory)]
+    [Parameter()]
     [string]$breakGlassPassword,
 
     [Parameter()]
@@ -41,54 +44,57 @@ try {
     foreach ($vmhost in $vmhosts) {
         $esxcli = Get-EsxCli -VMhost $vmhost -V2
 
-        #Check to see if the account already exists
-        $esxAccounts = $esxcli.system.account.list.Invoke()
-        $newAccount = $esxAccounts | Where-Object {$_.UserID -eq $breakGlassUser}
+        if ($enableBreakGlassUser -eq $true) {
+            #Check to see if the account already exists
+            $esxAccounts = $esxcli.system.account.list.Invoke()
+            $newAccount = $esxAccounts | Where-Object {$_.UserID -eq $breakGlassUser}
 
-        #If the account doesn't exist, create it
-        if (!$newAccount) {
-            $arguments = $null
-            $arguments = $esxcli.system.account.add.CreateArgs()
-            $arguments.id = $breakGlassUser
-            $arguments.password = $breakGlassPassword
-            $arguments.passwordconfirmation = $breakGlassPassword
-            $arguments.description = $breakGlassUser
-            $arguments.shellaccess = $true
-
-            $esxcli.system.account.add.Invoke($arguments) | Out-Null
-
-            $getAccounts = $esxcli.system.account.list.Invoke()
-            $checkNewAccount = $getAccounts | Where-Object {$_.UserID -eq $breakGlassUser}
-            if (($checkNewAccount) -and ($checkNewAccount.shellaccess -eq $true)) {
-                Write-Host "[$($vmhost.Name)] $breakGlassUser was created and configured successfully."
-            } else {
-                Write-Host "[$($vmhost.Name)] $breakGlassUser was not created and configured successfully. Exiting."
-                Exit
-            }
-        } else {
-            Write-Host "[$($vmhost.Name)] Account $breakGlassUser already exists. Skipping account creation."
-
-            #Check the configuration of the account
-            $accountConfig = $esxcli.system.account.list.Invoke() | Where-Object {$_.UserID -eq $breakGlassUser}
-            if ($accountConfig.shellaccess -ne $true) {
-                Write-Host "[$($vmhost.Name)] $breakGlassUser exists, but it does not have shell access. Resolving."
+            #If the account doesn't exist, create it
+            if (!$newAccount) {
                 $arguments = $null
-                $arguments = $esxcli.system.account.set.CreateArgs()
+                $arguments = $esxcli.system.account.add.CreateArgs()
                 $arguments.id = $breakGlassUser
+                $arguments.password = $breakGlassPassword
+                $arguments.passwordconfirmation = $breakGlassPassword
+                $arguments.description = $breakGlassUser
                 $arguments.shellaccess = $true
 
-                $esxcli.system.account.set.Invoke($arguments) | Out-Null
+                $esxcli.system.account.add.Invoke($arguments) | Out-Null
 
                 $getAccounts = $esxcli.system.account.list.Invoke()
                 $checkNewAccount = $getAccounts | Where-Object {$_.UserID -eq $breakGlassUser}
                 if (($checkNewAccount) -and ($checkNewAccount.shellaccess -eq $true)) {
-                    Write-Host "[$($vmhost.Name)] $breakGlassUser was configured successfully."
+                    Write-Host "[$($vmhost.Name)] $breakGlassUser was created and configured successfully."
                 } else {
-                    Write-Host "[$($vmhost.Name)] $breakGlassUser was not configured successfully. Exiting."
+                    Write-Host "[$($vmhost.Name)] $breakGlassUser was not created and configured successfully. Exiting."
                     Exit
+                }
+            } else {
+                Write-Host "[$($vmhost.Name)] Account $breakGlassUser already exists. Skipping account creation."
+
+                #Check the configuration of the account
+                $accountConfig = $esxcli.system.account.list.Invoke() | Where-Object {$_.UserID -eq $breakGlassUser}
+                if ($accountConfig.shellaccess -ne $true) {
+                    Write-Host "[$($vmhost.Name)] $breakGlassUser exists, but it does not have shell access. Resolving."
+                    $arguments = $null
+                    $arguments = $esxcli.system.account.set.CreateArgs()
+                    $arguments.id = $breakGlassUser
+                    $arguments.shellaccess = $true
+
+                    $esxcli.system.account.set.Invoke($arguments) | Out-Null
+
+                    $getAccounts = $esxcli.system.account.list.Invoke()
+                    $checkNewAccount = $getAccounts | Where-Object {$_.UserID -eq $breakGlassUser}
+                    if (($checkNewAccount) -and ($checkNewAccount.shellaccess -eq $true)) {
+                        Write-Host "[$($vmhost.Name)] $breakGlassUser was configured successfully."
+                    } else {
+                        Write-Host "[$($vmhost.Name)] $breakGlassUser was not configured successfully. Exiting."
+                        Exit
+                    }
                 }
             }
         }
+        
 
         #Make $breakGlassUser an admin account
         $accountAdmin = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $breakGlassUser}
