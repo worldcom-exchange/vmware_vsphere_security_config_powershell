@@ -69,6 +69,27 @@ try {
                     Write-Host "[$($vmhost.Name)] $breakGlassUser was not created and configured successfully. Exiting."
                     Exit
                 }
+
+                #Make $breakGlassUser an admin account
+                $accountAdmin = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $breakGlassUser}
+                if ($accountAdmin.Role -eq "Admin") {
+                    Write-Host "[$($vmhost.Name)] $breakGlassUser is already an admin. Skipping."
+                } else {
+                    $arguments = $null
+                    $arguments = $esxcli.system.permission.set.CreateArgs()
+                    $arguments.id = $breakGlassUser
+                    $arguments.role = 'Admin'
+
+                    $esxcli.system.permission.set.Invoke($arguments) | Out-Null
+
+                    $checkAccountAdmin = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $breakGlassUser}
+                    if ($checkaccountAdmin.Role -eq "Admin") {
+                        Write-Host "[$($vmhost.Name)] $breakGlassUser was successfully configured with Admin permissions."
+                    } else {
+                        Write-Host "[$($vmhost.Name)] $breakGlassUser was not successfully configured with Admin permissions. Exiting."
+                        Exit
+                    }
+                }
             } else {
                 Write-Host "[$($vmhost.Name)] Account $breakGlassUser already exists. Skipping account creation."
 
@@ -92,28 +113,6 @@ try {
                         Exit
                     }
                 }
-            }
-        }
-        
-
-        #Make $breakGlassUser an admin account
-        $accountAdmin = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $breakGlassUser}
-        if ($accountAdmin.Role -eq "Admin") {
-            Write-Host "[$($vmhost.Name)] $breakGlassUser is already an admin. Skipping."
-        } else {
-            $arguments = $null
-            $arguments = $esxcli.system.permission.set.CreateArgs()
-            $arguments.id = $breakGlassUser
-            $arguments.role = 'Admin'
-
-            $esxcli.system.permission.set.Invoke($arguments) | Out-Null
-
-            $checkAccountAdmin = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $breakGlassUser}
-            if ($checkaccountAdmin.Role -eq "Admin") {
-                Write-Host "[$($vmhost.Name)] $breakGlassUser was successfully configured with Admin permissions."
-            } else {
-                Write-Host "[$($vmhost.Name)] $breakGlassUser was not successfully configured with Admin permissions. Exiting."
-                Exit
             }
         }
     
