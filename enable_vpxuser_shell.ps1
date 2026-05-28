@@ -2,8 +2,14 @@ param(
     [Parameter(Mandatory)]
     [string]$vCenter,
 
-    [Parameter(Mandatory)]
-    [string]$clusterName, 
+    [Parameter()]
+    [string]$targetType,
+
+    [Parameter()]
+    [string]$clusterName,
+
+    [Parameter()]
+    [string]$hostName,
 
     [Parameter(Mandatory)]
     [string]$esxiAdminUser,
@@ -11,6 +17,24 @@ param(
     [Parameter(Mandatory)]
     [string]$esxiAdminPassword
 )
+if ($clusterName -and $hostName) {
+    Write-Error "Cannot define both ESXi host name and vSphere Cluster name."
+    Exit
+}
+if ($targetType -match "Host") {
+    if(!$hostName) {
+        Write-Error "Host name cannot be null when target type is set to Host"
+        Exit
+    }
+} elseif ($targetType -match "Cluster") {
+    if (!$clusterName) {
+        Write-Error "Cluster name cannot be null when target type is set to Cluster"
+        Exit
+    }
+} else {
+    Write-Error "Invalid target type"
+    Exit
+}
 
 $powerCLI = Get-Module -Name VMware.PowerCLI
 if (!$powerCLI) {
@@ -43,8 +67,12 @@ if (!$poshSSH) {
 
 try {
     $sshCredentials = New-Object -TypeName PSCredential -ArgumentList $esxiAdminUser, ($esxiAdminPassword | ConvertTo-SecureString -AsPlainText -Force)
-    $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost
-
+    if ($targetType -match "Host") {
+        $vmhosts = Get-VMHost -Name $hostName
+    } elseif ($targetType -match "Cluster") {
+        $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    }
+    
     foreach ($vmhost in $vmhosts) {
         
         #Start SSH service on $vmhost

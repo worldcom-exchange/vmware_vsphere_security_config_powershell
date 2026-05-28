@@ -2,16 +2,41 @@ param(
     [Parameter(Mandatory)]
     [string]$vCenter,
 
-    [Parameter(Mandatory)]
+    [Parameter()]
+    [string]$targetType,
+
+    [Parameter()]
     [string]$clusterName,
+
+    [Parameter()]
+    [string]$hostName,
 
     [Parameter(Mandatory)]
     [string]$breakGlassUser
 )
 
+if ($clusterName -and $hostName) {
+    Write-Error "Cannot define both ESXi host name and vSphere Cluster name."
+    Exit
+}
+if ($targetType -match "Host") {
+    if(!$hostName) {
+        Write-Error "Host name cannot be null when target type is set to Host"
+        Exit
+    }
+} elseif ($targetType -match "Cluster") {
+    if (!$clusterName) {
+        Write-Error "Cluster name cannot be null when target type is set to Cluster"
+        Exit
+    }
+} else {
+    Write-Error "Invalid target type"
+    Exit
+}
+
 $powerCLI = Get-Module -Name VMware.PowerCLI
 if (!$powerCLI) {
-    Import-Module VMware.PowerCLI -ErrorAction Stop
+    Import-Module VMware.PowerCLI -ErrorAction Stop | Out-Null
 }
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
 
@@ -29,7 +54,11 @@ if ($vcenterCheck.IsConnected -eq $true) {
 Write-Host "The vpxuser account needs to be configured to have shell access before you start. Log in to the shell of your ESXi host and run 'esxcli system account set -i vpxuser -s true'."
 
 try {
-    $vmhosts = Get-VMHost -Location $cluster
+    if ($targetType -match "Host") {
+        $vmhosts = Get-VMHost -Name $hostName
+    } elseif ($targetType -match "Cluster") {
+        $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    }
 
     foreach ($vmhost in $vmhosts) {
         $esxcli = Get-EsxCli -VMhost $vmhost -V2

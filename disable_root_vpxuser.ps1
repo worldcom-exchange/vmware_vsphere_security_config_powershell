@@ -2,8 +2,14 @@ param(
     [Parameter(Mandatory)]
     [string]$vCenter,
 
-    [Parameter(Mandatory)]
+    [Parameter()]
+    [string]$targetType,
+
+    [Parameter()]
     [string]$clusterName,
+
+    [Parameter()]
+    [string]$hostName,
 
     [Parameter()]
     [switch]$enableBreakGlassUser,
@@ -20,10 +26,28 @@ param(
     [Parameter()]
     [switch]$disableVpxuser
 )
-
+if ($clusterName -and $hostName) {
+    Write-Error "Cannot define both ESXi host name and vSphere Cluster name."
+    Exit
+}
+if ($targetType -match "Host") {
+    if(!$hostName) {
+        Write-Error "Host name cannot be null when target type is set to Host"
+        Exit
+    }
+} elseif ($targetType -match "Cluster") {
+    if (!$clusterName) {
+        Write-Error "Cluster name cannot be null when target type is set to Cluster"
+        Exit
+    }
+} else {
+    Write-Error "Invalid target type"
+    Exit
+}
+    
 $powerCLI = Get-Module -Name VMware.PowerCLI
 if (!$powerCLI) {
-    Import-Module VMware.PowerCLI -ErrorAction Stop
+    Import-Module VMware.PowerCLI -ErrorAction Stop | Out-Null
 }
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
 
@@ -39,7 +63,11 @@ if ($vcenterCheck.IsConnected -eq $true) {
 }
 
 try {
-    $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost
+    if ($targetType -match "Host") {
+        $vmhosts = Get-VMHost -Name $hostName
+    } elseif ($targetType -match "Cluster") {
+        $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    }
 
     foreach ($vmhost in $vmhosts) {
         $esxcli = Get-EsxCli -VMhost $vmhost -V2
@@ -93,6 +121,25 @@ try {
             } else {
                 Write-Host "[$($vmhost.Name)] Account $breakGlassUser already exists. Skipping account creation."
 
+                #Make $breakGlassUser an admin account
+                $accountAdmin = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $breakGlassUser}
+                if ($accountAdmin.Role -eq "Admin") {
+                    Write-Host "[$($vmhost.Name)] $breakGlassUser is already an admin. Skipping."
+                } else {
+                    $arguments = $null
+                    $arguments = $esxcli.system.permission.set.CreateArgs()
+                    $arguments.id = $breakGlassUser
+                    $arguments.role = 'Admin'
+
+                    $esxcli.system.permission.set.Invoke($arguments) | Out-Null
+
+                    $checkAccountAdmin = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $breakGlassUser}
+                    if ($checkaccountAdmin.Role -eq "Admin") {
+                        Write-Host "[$($vmhost.Name)] $breakGlassUser was successfully configured with Admin permissions."
+                    } else {
+                        Write-Host "[$($vmhost.Name)] $breakGlassUser was not successfully configured with Admin permissions. Exiting."
+                        Exit
+                    }
                 #Check the configuration of the account
                 $accountConfig = $esxcli.system.account.list.Invoke() | Where-Object {$_.UserID -eq $breakGlassUser}
                 if ($accountConfig.shellaccess -ne $true) {
@@ -163,6 +210,7 @@ try {
                 }
             }
         }
+    }
         
 
         Write-Host ""

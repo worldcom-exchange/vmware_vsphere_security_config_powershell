@@ -2,32 +2,62 @@ param(
     [Parameter(Mandatory)]
     [string]$vCenter,
 
-    [Parameter(Mandatory)]
+    [Parameter()]
+    [string]$targetType,
+
+    [Parameter()]
     [string]$clusterName,
+
+    [Parameter()]
+    [string]$hostName,
 
     [Parameter()]
     [switch]$remediate
 )
 
-try {
-    $powerCLI = Get-Module -Name VMware.PowerCLI
-    if (!$powerCLI) {
-        Import-Module VMware.PowerCLI -ErrorAction Stop
-    }
-    Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
-
-    $credential = Get-Credential -Message "Enter credentials for $vCenter"
-    $vcenterCheck = Connect-VIServer -Server $vCenter -Credential $Credential -ErrorAction SilentlyContinue
-
-    if ($vcenterCheck.IsConnected -eq $true) {
-        Write-Host "Successfully connected to vCenter Server $vCenter"
-    } else {
-        Write-Error "Error connecting to vCenter Server $vCenter. Please validate FQDN/IP and credentials."
-        $vcenterBroke = $true
+if ($clusterName -and $hostName) {
+    Write-Error "Cannot define both ESXi host name and vSphere Cluster name."
+    Exit
+}
+if ($targetType -match "Host") {
+    if(!$hostName) {
+        Write-Error "Host name cannot be null when target type is set to Host"
         Exit
     }
+} elseif ($targetType -match "Cluster") {
+    if (!$clusterName) {
+        Write-Error "Cluster name cannot be null when target type is set to Cluster"
+        Exit
+    }
+} else {
+    Write-Error "Invalid target type"
+    Exit
+}
 
-    $vmhosts = Get-VMHost -Location (Get-Cluster -Name $ClusterName -ErrorAction Stop) | Sort-Object Name
+$powerCLI = Get-Module -Name VMware.PowerCLI
+if (!$powerCLI) {
+    Import-Module VMware.PowerCLI -ErrorAction Stop | Out-Null
+}
+Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
+
+$credential = Get-Credential -Message "Enter credentials for $vCenter"
+$vcenterCheck = Connect-VIServer -Server $vCenter -Credential $Credential -ErrorAction SilentlyContinue
+
+if ($vcenterCheck.IsConnected -eq $true) {
+    Write-Host "Successfully connected to vCenter Server $vCenter"
+} else {
+    Write-Error "Error connecting to vCenter Server $vCenter. Please validate FQDN/IP and credentials."
+    $vcenterBroke = $true
+    Exit
+}
+
+try {
+    if ($targetType -match "Host") {
+        $vmhosts = Get-VMHost -Name $hostName
+    } elseif ($targetType -match "Cluster") {
+        $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    }
+
     foreach ($vmhost in $vmhosts) {
         $hostView = Get-View -Id $vmhost.Id -ErrorAction Stop
 
