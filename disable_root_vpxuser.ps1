@@ -18,9 +18,6 @@ param(
     [string]$breakGlassUser,
 
     [Parameter()]
-    [string]$breakGlassPassword,
-
-    [Parameter()]
     [switch]$disableRoot,
 
     [Parameter()]
@@ -61,6 +58,9 @@ if ($vcenterCheck.IsConnected -eq $true) {
     $vcenterBroke = $true
     Exit
 }
+if ($enableBreakGlassUser -eq $true) {
+    $breakGlassCredential = Get-Credential -Username $breakGlassUser -Message "Enter the password for the break glass user."
+}
 
 try {
     if ($targetType -match "Host") {
@@ -82,8 +82,8 @@ try {
                 $arguments = $null
                 $arguments = $esxcli.system.account.add.CreateArgs()
                 $arguments.id = $breakGlassUser
-                $arguments.password = $breakGlassPassword
-                $arguments.passwordconfirmation = $breakGlassPassword
+                $arguments.password = "$($breakGlassCredential.GetNetworkCredential().Password)"
+                $arguments.passwordconfirmation = "$($breakGlassCredential.GetNetworkCredential().Password)"
                 $arguments.description = $breakGlassUser
                 $arguments.shellaccess = $true
 
