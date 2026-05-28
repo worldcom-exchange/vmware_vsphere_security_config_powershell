@@ -9,13 +9,7 @@ param(
     [string]$clusterName,
 
     [Parameter()]
-    [string]$hostName,
-
-    [Parameter(Mandatory)]
-    [string]$esxiAdminUser,
-
-    [Parameter(Mandatory)]
-    [string]$esxiAdminPassword
+    [string]$hostName
 )
 if ($clusterName -and $hostName) {
     Write-Error "Cannot define both ESXi host name and vSphere Cluster name."
@@ -42,8 +36,8 @@ if (!$powerCLI) {
 }
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
 
-$credential = Get-Credential -Message "Enter credentials for $vCenter"
-$vcenterCheck = Connect-VIServer -Server $vCenter -Credential $Credential -ErrorAction SilentlyContinue
+$vcenterCredential = Get-Credential -Message "Enter credentials for $vCenter"
+$vcenterCheck = Connect-VIServer -Server $vCenter -Credential $vcenterCredential -ErrorAction SilentlyContinue
 
 if ($vcenterCheck.IsConnected -eq $true) {
     Write-Output "Successfully connected to vCenter Server $vCenter"
@@ -52,6 +46,8 @@ if ($vcenterCheck.IsConnected -eq $true) {
     $vcenterBroke = $true
     Exit
 }
+$sshCredential = Get-Credential -Message "Enter ESXi host admin credentials for SSH"
+
 
 $poshSSH = Get-Module -Name Posh-SSH
 if (!$poshSSH) {
@@ -66,13 +62,12 @@ if (!$poshSSH) {
 }
 
 try {
-    $sshCredentials = New-Object -TypeName PSCredential -ArgumentList $esxiAdminUser, ($esxiAdminPassword | ConvertTo-SecureString -AsPlainText -Force)
     if ($targetType -match "Host") {
         $vmhosts = Get-VMHost -Name $hostName
     } elseif ($targetType -match "Cluster") {
         $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     }
-    
+
     foreach ($vmhost in $vmhosts) {
         
         #Start SSH service on $vmhost
@@ -85,7 +80,7 @@ try {
         }
 
         #Create SSH session to $vmhost
-        $sshSession = New-SSHSession -ComputerName ($vmhost.NetworkInfo.VirtualNic | Where-Object {$_.ManagementTrafficEnabled -eq $true}).IP -Credential $sshCredentials -Force -WarningAction SilentlyContinue
+        $sshSession = New-SSHSession -ComputerName ($vmhost.NetworkInfo.VirtualNic | Where-Object {$_.ManagementTrafficEnabled -eq $true}).IP -Credential $sshCredential -Force -WarningAction SilentlyContinue
         if($sshSession) {
             Write-Output "[$($vmhost.Name)] SSH session has started"
         } else {
