@@ -69,7 +69,12 @@ try {
     }
 
     foreach ($vmhost in $vmhosts) {
-        
+        #Check for Lockdown Mode
+        $lockdownMode = $vmhost.ExtensionData.Config.AdminDisabled
+        if ($lockdownMode -eq $true) {
+            ($vmhost | Get-View).ExitLockdownMode()
+            Write-Output "[$($vmhost.Name)] Lockdown Mode disabled."
+        }    
         #Start SSH service on $vmhost
         $sshService = Get-VMHost $vmhost | Get-VMHostService | Where-Object {$_.Key -eq "TSM-SSH"}
         if ($sshService.Running -eq $false) {
@@ -110,6 +115,11 @@ try {
         if ($sshServiceStop.Running -eq $true) {
             $sshServiceStop | Stop-VMHostService -Confirm:$false | Out-Null
             Write-Output "[$($vmhost.Name)] SSH service stopped"
+        }
+
+        if ($lockdownMode -eq $true) {
+            ($vmhost | Get-View).EnterLockdownMode()
+            Write-Output "[$($vmhost.Name)] Lockdown Mode enabled."
         }
         Write-Output ""
     }
