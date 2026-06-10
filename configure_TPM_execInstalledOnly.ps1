@@ -18,6 +18,8 @@ param(
     [switch]$remediate
 )
 
+Start-Transcript -Path "configure_TPM_execinstalledonly_$(get-date -f MM-dd-yyyy-HHmmss)" -Append
+
 if ($clusterName -and $hostName) {
     Write-Error "Cannot define both ESXi host name and vSphere Cluster name."
     Exit
@@ -175,3 +177,4 @@ try {
         Disconnect-VIServer -Server * -Confirm:$false | Out-Null
     }
 }
+Stop-Transcript

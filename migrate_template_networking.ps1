@@ -12,6 +12,8 @@ param(
     [string]$destinationNetwork
 )
 
+Start-Transcript -Path "migrate_template_networking_$(get-date -f MM-dd-yyyy-HHmmss)" -Append
+
 $powerCLI = Get-Module -Name VMware.PowerCLI
 if (!$powerCLI) {
     Import-Module VMware.PowerCLI -ErrorAction Stop
@@ -94,3 +96,5 @@ try {
         Disconnect-VIServer -Server * -Confirm:$false | Out-Null
     }
 }
+
+Stop-Transcript

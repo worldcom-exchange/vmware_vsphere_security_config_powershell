@@ -23,6 +23,9 @@ param(
     [Parameter()]
     [switch]$disableVpxuser
 )
+
+Start-Transcript -Path "disable_root_vpxuser_$(get-date -f MM-dd-yyyy-HHmmss)" -Append
+
 if ($clusterName -and $hostName) {
     Write-Error "Cannot define both ESXi host name and vSphere Cluster name."
     Exit
@@ -239,3 +242,5 @@ finally {
         Disconnect-VIServer -Server * -Confirm:$false | Out-Null
     }
 }
+
+Stop-Transcript
