@@ -12,6 +12,9 @@ param(
     [string]$hostName,
 
     [Parameter()]
+    [switch]$tpmSecureBootReboot,
+
+    [Parameter()]
     [switch]$remediate
 )
 
@@ -81,6 +84,53 @@ try {
         Write-Host "[$($vmhost.Name)] execInstalledOnly policy runtime configuration - $($execInstalledOnly.Runtime)"
 
         if ($remediate -eq $true) {
+            if ($tpmSecureBootReboot -eq $true){
+                if ($tpmVersion -ge "2.0" -and $hostview.Capability.UefiSecureBoot -eq $true -and $execInstalledOnly.Configured -eq $true) {
+                    $arguments = $null
+                    $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+                    $arguments.requireexecinstalledonly = $true
+
+                    $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+
+                    $esxcli = Get-EsxCli -VMhost $vmhost -V2 -ErrorAction Stop
+                    $checkExecInstalledEnforcement = $esxcli.system.settings.encryption.get.Invoke()
+
+                    if ($checkExecInstalledEnforcement.requireexecinstalledonly -eq $true) {
+                        Write-Host "[$($vmhost.Name)] Require execInstalledOnly enforcement configured successfully"
+                    } else {
+                        Write-Host "[$($vmhost.Name)] Require execInstalledOnly enforcement not configured successfully"
+                    } 
+                } else {
+                    Write-Host "[$($vmhost.Name)] Prerequisites for ExecInstalledOnly enforcement not met. Exiting."
+                    Exit
+                }
+            }
+            
+            if (($tpmVersion -eq "N/A") -or ($tpmVersion -lt "2.0")) {
+                Write-Host "[$($vmhost.Name)] TPM 2.0+ not supported. This is required for UEFI Secure Boot enforcement."
+            } else {
+                $arguments = $null
+                $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+                $arguments.mode = "TPM"
+                $arguments.requiresecureboot = $true
+
+                $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+
+                $esxcli = Get-EsxCli -VMhost $vmhost -V2 -ErrorAction Stop
+                $checkSecureBoot = $esxcli.system.settings.encryption.get.Invoke() | Out-Null
+
+                if ($checkSecureBoot.mode -eq "TPM") {
+                    Write-Host "[$($vmhost.Name)] TPM 2.0 mode configured successfully"
+                } else {
+                    Write-Host "[$($vmhost.Name)] TPM 2.0 mode not configured successfully"
+                }
+
+                if ($checkSecureBoot.requiresecureboot -eq $true) {
+                    Write-Host "[$($vmhost.Name)] Require UEFI Secure Boot configured successfully"
+                } else {
+                    Write-Host "[$($vmhost.Name)] Require UEFI Secure Boot not configured successfully"
+                }
+            }
             if ($execInstalledOnly.Configured -eq $true ) {
                 Write-Host "[$($vmhost.Name)] execInstalledOnly policy already configured. Skipping..."
             } else {
@@ -101,39 +151,6 @@ try {
 
                 if ($checkExecInstalledOnly.configured -eq $true) {
                     Write-Host "[$($vmhost.Name)] execInstalledOnly configured to TRUE. Reboot required for runtime enforcement."
-                }
-            }
-            
-            if (($tpmVersion -eq "N/A") -or ($tpmVersion -lt "2.0")) {
-                Write-Host "[$($vmhost.Name)] TPM 2.0+ not supported. This is required for UEFI Secure Boot enforcement."
-            } else {
-                $arguments = $null
-                $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
-                $arguments.mode = "TPM"
-                $arguments.requiresecureboot = $true
-                $arguments.requireexecinstalledonly = $true
-
-                $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
-
-                $esxcli = Get-EsxCli -VMhost $vmhost -V2 -ErrorAction Stop
-                $checkSecureBoot = $esxcli.system.settings.encryption.get.Invoke() | Out-Null
-
-                if ($checkSecureBoot.mode -eq "TPM") {
-                    Write-Host "[$($vmhost.Name)] TPM 2.0 mode configured successfully"
-                } else {
-                    Write-Host "[$($vmhost.Name)] TPM 2.0 mode not configured successfully"
-                }
-
-                if ($checkSecureBoot.requireexecinstalledonly -eq $true) {
-                    Write-Host "[$($vmhost.Name)] Require execInstalledOnly configured successfully"
-                } else {
-                    Write-Host "[$($vmhost.Name)] Require execInstalledOnly not configured successfully"
-                } 
-
-                if ($checkSecureBoot.requiresecureboot -eq $true) {
-                    Write-Host "[$($vmhost.Name)] Require UEFI Secure Boot configured successfully"
-                } else {
-                    Write-Host "[$($vmhost.Name)] Require UEFI Secure Boot not configured successfully"
                 }
             }
         }
