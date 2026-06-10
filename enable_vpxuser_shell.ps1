@@ -9,17 +9,16 @@ param(
     [string]$clusterName,
 
     [Parameter()]
-    [string]$hostName
+    [string]$hostName,
+
+    [Parameter()]
+    [string]$csvPath
 )
 
 Start-Transcript -Path "enable_vpxuser_shell_$(get-date -f MM-dd-yyyy-HHmmss)" -Append
 
-if ($clusterName -and $hostName) {
-    Write-Error "Cannot define both ESXi host name and vSphere Cluster name."
-    Exit
-}
 if ($targetType -match "Host") {
-    if(!$hostName) {
+    if (!$hostName) {
         Write-Error "Host name cannot be null when target type is set to Host"
         Exit
     }
@@ -27,6 +26,10 @@ if ($targetType -match "Host") {
     if (!$clusterName) {
         Write-Error "Cluster name cannot be null when target type is set to Cluster"
         Exit
+    }
+} elseif ($targetType -match "CSV") {
+    if (!$csvPath) {
+        Write-Error "CSV path cannot be null when target type is set to CSV"
     }
 } else {
     Write-Error "Invalid target type"
@@ -69,6 +72,8 @@ try {
         $vmhosts = Get-VMHost -Name $hostName
     } elseif ($targetType -match "Cluster") {
         $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    } elseif ($targetType -match "CSV") {
+        $vmhosts = Import-CSV -Path $csvPath -Header "Host"
     }
 
     foreach ($vmhost in $vmhosts) {
