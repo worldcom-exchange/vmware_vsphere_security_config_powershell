@@ -62,6 +62,13 @@ try {
     }
 
     foreach ($vmhost in $vmhosts) {
+        #Check for Lockdown Mode
+        $lockdownMode = $vmhost.ExtensionData.Config.AdminDisabled
+        if ($lockdownMode -eq $true) {
+            ($vmhost | Get-View).ExitLockdownMode()
+            Write-Output "[$($vmhost.Name)] Lockdown Mode disabled."
+        }
+
         $hostView = Get-View -Id $vmhost.Id -ErrorAction Stop
 
         if (!$hostview.Capability.TpmVersion) {
@@ -86,6 +93,8 @@ try {
         if ($remediate -eq $true) {
             if ($tpmSecureBootReboot -eq $true){
                 if ($tpmVersion -ge "2.0" -and $hostview.Capability.UefiSecureBoot -eq $true -and $execInstalledOnly.Configured -eq $true) {
+                    $esxcli = Get-EsxCli -VMHost $vmhost -V2 -ErrorAction Stop
+
                     $arguments = $null
                     $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
                     $arguments.requireexecinstalledonly = $true
@@ -153,6 +162,11 @@ try {
                     Write-Host "[$($vmhost.Name)] execInstalledOnly configured to TRUE. Reboot required for runtime enforcement."
                 }
             }
+        }
+
+        if ($lockdownMode -eq $true) {
+            ($vmhost | Get-View).EnterLockdownMode()
+            Write-Output "[$($vmhost.Name)] Lockdown Mode enabled."
         }
         Write-Host ""
     }
