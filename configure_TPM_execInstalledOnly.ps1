@@ -65,7 +65,12 @@ try {
     } elseif ($targetType -match "Cluster") {
         $vmhosts = Get-Cluster -Name $clusterName | Get-VMHost | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     } elseif ($targetType -match "CSV") {
-        $vmhosts = Import-CSV -Path $csvPath -Header "Host"
+        $csvHosts = Import-CSV -Path $csvPath | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+        $vmhosts = @()
+        foreach ($csvHost in $csvHosts) {
+            $vmhost = Get-VMhost -Name $csvHost.Host
+            $vmhosts += $vmhost
+        }
     }
 
     foreach ($vmhost in $vmhosts) {
@@ -85,17 +90,20 @@ try {
         }
         $esxcli = Get-EsxCli -VMHost $vmhost -V2 -ErrorAction Stop
         
-        $arguments = $null
         $arguments = $esxcli.system.settings.kernel.list.CreateArgs()
-        $arguments.option = "execInstalledOnly"
-                    
+        $arguments.option = "execInstalledOnly"     
         $execInstalledOnly = $esxcli.system.settings.kernel.list.Invoke($arguments)
+
+        $execInstalledOnlyEnforced = $esxcli.system.settings.encryption.get.Invoke()
+        
 
         Write-Host "[$($vmhost.Name)] TPM supported - $($hostView.Capability.TpmSupported)"
         Write-Host "[$($vmhost.Name)] TPM version supported - $tpmVersion"
         Write-Host "[$($vmhost.Name)] UEFI SecureBoot supported - $($hostView.Capability.UefiSecureBoot)"
         Write-Host "[$($vmhost.Name)] execInstalledOnly policy configured - $($execInstalledOnly.Configured)"
         Write-Host "[$($vmhost.Name)] execInstalledOnly policy runtime configuration - $($execInstalledOnly.Runtime)"
+        Write-Host "[$($vmhost.Name)] execInstalledOnly enforced - $($execInstalledOnlyEnforced.Runtime)"
+
 
         if ($remediate -eq $true) {
             if ($tpmSecureBootReboot -eq $true){
