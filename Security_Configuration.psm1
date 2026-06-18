@@ -131,10 +131,18 @@ Function Get-EsxiUser {
     $esxAccounts = $esxcli.system.account.list.Invoke()
     $accountInfo = $esxAccounts | Where-Object {$_.UserID -eq $userName}
 
-    if ($accountInfo) {
-        $accountInfo | Format-List
-    } else {
+    if (!$accountInfo) {
         Write-Output "[$ESXiHost] User $userName does not exist."
+    } else {
+    $role = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $userName}    
+
+    $output = New-Object -TypeName PSCustomObject
+    $output | Add-Member -NotePropertyName 'UserID' -NotePropertyValue $accountInfo.UserID
+    $output | Add-Member -NotePropertyName 'ShellAccess' -NotePropertyValue $accountInfo.ShellAccess
+    $output | Add-Member -NotePropertyName 'Role' -NotePropertyValue $role.Role
+    $output | Add-Member -NotePropertyName 'Description' -NotePropertyValue $accountInfo.Description
+
+    $output
     }
 } Export-ModuleMember -Function Get-EsxiUser
 
