@@ -122,27 +122,43 @@ Export-ModuleMember -Function New-EsxiUser
 Function Get-EsxiUser {
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
-        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
+        [Parameter(Mandatory = $false)] [ValidateNotNullOrEmpty()] [String] $userName
     )
 
     $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
 
-    #Check to see if the account already exists
-    $esxAccounts = $esxcli.system.account.list.Invoke()
-    $accountInfo = $esxAccounts | Where-Object {$_.UserID -eq $userName}
+    if (!$userName) {
+        $outputs = @()
+        $esxAccounts = $esxcli.system.account.list.Invoke()
+        foreach ($esxAccount in $esxAccounts) {
+            $role = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $esxAccount.UserID}
+            
+            $output = New-Object -TypeName PSCustomObject
+            $output | Add-Member -NotePropertyName 'UserID' -NotePropertyValue $esxAccount.UserID
+            $output | Add-Member -NotePropertyName 'ShellAccess' -NotePropertyValue $esxAccount.ShellAccess
+            $output | Add-Member -NotePropertyName 'Role' -NotePropertyValue $role.Role
+            $output | Add-Member -NotePropertyName 'Description' -NotePropertyValue $esxAccount.Description
 
-    if (!$accountInfo) {
-        Write-Output "[$ESXiHost] User $userName does not exist."
+            $outputs += $output
+        }
+        return $outputs
     } else {
-    $role = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $userName}    
+        
+        $role = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -match $userName}
+        $esxAccount = $esxcli.system.account.list.Invoke() | Where-Object {$_.UserID -match $userName}
+        
+        if (!$esxAccount) {
+            Write-Output "[$ESXiHost] User $userName does not exist."
+            Exit
+        } else {
+            $output = New-Object -TypeName PSCustomObject
+            $output | Add-Member -NotePropertyName 'UserID' -NotePropertyValue $esxAccount.UserID
+            $output | Add-Member -NotePropertyName 'ShellAccess' -NotePropertyValue $esxAccount.ShellAccess
+            $output | Add-Member -NotePropertyName 'Role' -NotePropertyValue $role.Role
+            $output | Add-Member -NotePropertyName 'Description' -NotePropertyValue $esxAccount.Description
 
-    $output = New-Object -TypeName PSCustomObject
-    $output | Add-Member -NotePropertyName 'UserID' -NotePropertyValue $accountInfo.UserID
-    $output | Add-Member -NotePropertyName 'ShellAccess' -NotePropertyValue $accountInfo.ShellAccess
-    $output | Add-Member -NotePropertyName 'Role' -NotePropertyValue $role.Role
-    $output | Add-Member -NotePropertyName 'Description' -NotePropertyValue $accountInfo.Description
-
-    $output
+            $output
+        }
     }
 } Export-ModuleMember -Function Get-EsxiUser
 
