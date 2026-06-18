@@ -48,7 +48,7 @@ Function Get-LockdownMode {
 Function Set-LockdownMode {
 Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
-        [Parameter(Mandatory = $true)] [ValidateSet("lockdownDisabled", "lockdownNormal", "lockdownStrict")] [String] $lockdownLevel
+        [Parameter(Mandatory = $true)] [ValidateSet("lockdownDisabled", "lockdownNormal")] [String] $lockdownLevel
     )
 
     $currentLevel = (Get-LockdownMode -ESXiHost $ESXiHost).LockdownMode
@@ -73,48 +73,48 @@ Param (
 Function New-EsxiUser {
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
-        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $newUserName
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
     )
 
     $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
 
     #Check to see if the account already exists
     $esxAccounts = $esxcli.system.account.list.Invoke()
-    $newAccount = $esxAccounts | Where-Object {$_.UserID -eq $newUserName}
+    $newAccount = $esxAccounts | Where-Object {$_.UserID -eq $userName}
 
     #If the account doesn't exist, create it
     if (!$newAccount) {
         do {
-            $getCredentialA = Read-Host "Enter the password for $newUserName" -AsSecureString
-            $getCredentialB = Read-Host "Confirm the password for $newUserName" -AsSecureString
+            $getCredentialA = Read-Host "Enter the password for $userName" -AsSecureString
+            $getCredentialB = Read-Host "Confirm the password for $userName" -AsSecureString
 
             $compareCredentials = Compare-SecureString -SecureString1 $getCredentialA -SecureString2 $getCredentialB
             if ($compareCredentials -eq $false) {
-                Write-Warning "Passwords do not match. Re-enter the password for $newUserName"
+                Write-Warning "Passwords do not match. Re-enter the password for $userName"
             }
         } until ($compareCredentials -eq $true)
 
-        $newUserCreds = New-Object System.Management.Automation.PSCredential($newUserName, $getCredentialA)
+        $newUserCreds = New-Object System.Management.Automation.PSCredential($userName, $getCredentialA)
 
         $arguments = $esxcli.system.account.add.CreateArgs()
-        $arguments.id = $newUserName
+        $arguments.id = $userName
         $arguments.password = "$($newUserCreds.GetNetworkCredential().Password)"
         $arguments.passwordconfirmation = "$($newUserCreds.GetNetworkCredential().Password)"
-        $arguments.description = $newUserName
+        $arguments.description = $userName
         $arguments.shellaccess = $true
 
         $esxcli.system.account.add.Invoke($arguments) | Out-Null
 
         $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
         $getAccounts = $esxcli.system.account.list.Invoke()
-        $checkNewAccount = $getAccounts | Where-Object { $_.UserID -eq $newUserName }
+        $checkNewAccount = $getAccounts | Where-Object { $_.UserID -eq $userName }
         if (($checkNewAccount) -and ($checkNewAccount.shellaccess -eq $true)) {
-            Write-Output "[$ESXiHost] $newUserName was created and configured successfully."
+            Write-Output "[$ESXiHost] $userName was created and configured successfully."
         } else {
-            Write-Output "[$ESXiHost] $newUserName was not created and configured successfully."
+            Write-Output "[$ESXiHost] $userName was not created and configured successfully."
         }
     } else {
-        Write-Output "[$ESXiHost] $newUserName already exists. Skipping."
+        Write-Output "[$ESXiHost] $userName already exists. Skipping."
     }
 }
 Export-ModuleMember -Function New-EsxiUser
@@ -307,6 +307,50 @@ Function Get-SecureBoot {
 } Export-ModuleMember -Function Get-SecureBoot
 
 Function Set-SecureBoot {
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enforced
+    )
+
+    $secureBoot = Get-SecureBoot -ESXiHost $ESXiHost
+    
+    if ($secureBoot.SecureBootSupported -eq $true) {
+        if ($Enforced -match "True"  -and $secureBoot.SecureBootEnforced -eq $true) {
+            Write-Output "[$ESXiHost] SecureBoot policy already set to enforced. Skipping."
+        } elseif ($Enforced -match "True" -and $secureBoot.SecureBootEnforced -eq $false){
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+
+            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+            $arguments.requiresecureboot = $true
+
+            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+
+            $checkSecureBoot = Get-SecureBoot -ESXiHost $ESXiHost
+            if ($checkSecureBoot.SecureBootEnforced -eq $true) {
+                Write-Output "[$ESXiHost] SecureBoot policy successfully set to enforced."
+            } else {
+                Write-Output "[$ESXiHost] SecureBoot policy was not successfully set to enforced."
+            }
+        } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $false) {
+            Write-Output "[$ESXiHost] SecureBoot policy already set to unenforced. Skipping."
+        } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $true) {
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+
+            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+            $arguments.requiresecureboot = $false
+
+            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+
+            $checkSecureBoot = Get-SecureBoot -ESXiHost $ESXiHost
+            if ($checkSecureBoot.SecureBootEnforced -eq $false) {
+                Write-Output "[$ESXiHost] SecureBoot policy successfully set to disabled."
+            } else {
+                Write-Output "[$ESXiHost] SecureBoot policy was not successfully set to disabled."
+            }
+        }
+    } elseif ($secureBoot.SecureBootSupported -eq $false) {
+        Write-Output "[$ESXiHost] SecureBoot is not supported on this ESXi host. Skipping."
+    }
 
 } Export-ModuleMember -Function Set-SecureBoot
 
