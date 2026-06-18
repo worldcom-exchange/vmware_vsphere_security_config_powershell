@@ -36,7 +36,7 @@ Function Get-LockdownMode {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMhost -Name $ESXiHost
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop
     
     $output = New-Object -TypeName PSCustomObject
     $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
@@ -76,7 +76,7 @@ Function New-EsxiUser {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
     )
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
     #Check to see if the account already exists
     $esxAccounts = $esxcli.system.account.list.Invoke()
@@ -105,7 +105,7 @@ Function New-EsxiUser {
 
         $esxcli.system.account.add.Invoke($arguments) | Out-Null
 
-        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
         $getAccounts = $esxcli.system.account.list.Invoke()
         $checkNewAccount = $getAccounts | Where-Object { $_.UserID -eq $userName }
         if (($checkNewAccount) -and ($checkNewAccount.shellaccess -eq $true)) {
@@ -125,7 +125,7 @@ Function Get-EsxiUser {
         [Parameter(Mandatory = $false)] [ValidateNotNullOrEmpty()] [String] $userName
     )
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
     if (!$userName) {
         $outputs = @()
@@ -143,7 +143,6 @@ Function Get-EsxiUser {
         }
         return $outputs
     } else {
-        
         $role = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -match $userName}
         $esxAccount = $esxcli.system.account.list.Invoke() | Where-Object {$_.UserID -match $userName}
         
@@ -170,7 +169,7 @@ Function Set-EsxiUser {
         [Parameter(Mandatory = $false)] [ValidateSet("Admin", "ReadOnly", "NoAccess")] [String] $role
     )
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
     #Check to see if the account exists
     $esxAccounts = $esxcli.system.account.list.Invoke()
@@ -187,7 +186,7 @@ Function Set-EsxiUser {
 
                 $esxcli.system.account.set.Invoke($arguments) | Out-Null
 
-                $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+                $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
                 $checkShellAccess = $esxcli.system.account.list.Invoke() | Where-Object {$_.UserID -eq $userName}
                 if ($checkShellAccess.shellaccess -eq $true) {
@@ -206,7 +205,7 @@ Function Set-EsxiUser {
 
                 $esxcli.system.account.set.Invoke($arguments) | Out-Null
 
-                $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+                $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
                 $checkShellAccess = $esxcli.system.account.list.Invoke() | Where-Object {$_.UserID -eq $userName}
                 if ($checkShellAccess.shellaccess -eq $false) {
@@ -218,7 +217,7 @@ Function Set-EsxiUser {
         } 
 
         if ($role) {
-            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
             $checkRole = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $userName}
 
@@ -231,7 +230,7 @@ Function Set-EsxiUser {
 
                 $esxcli.system.permission.set.Invoke($arguments) | Out-Null
 
-                $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+                $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
                 $checkNewRole = $esxcli.system.permission.list.Invoke() | Where-Object {$_.Principal -eq $userName}
                 if ($checkNewRole.Role -eq $role) {
                     Write-Output "[$ESXiHost] $userName was successfully assigned the role $role."
@@ -251,7 +250,7 @@ Function Get-TPM {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMhost -Name $ESXiHost
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop
     $hostview = Get-View -Id $vmhost.Id -ErrorAction Stop
     $tpmVersionSupported = $hostview.Capability.TpmVersion
 
@@ -259,7 +258,7 @@ Function Get-TPM {
         $tpmVersionSupported = "N/A"
     }
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
     $tpmMode = ($esxcli.system.settings.encryption.get.Invoke()).Mode
     if ($tpmMode -eq "TPM") {
         $tpmEnabled = $true
@@ -286,13 +285,13 @@ Function Enable-TPM {
     if ($currentTpmState -eq $true) {
         Write-Host "[$ESXiHost] TPM is already enabled. Skipping."
     } else {
-        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
         $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
         $arguments.mode = "TPM"
 
         $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
-        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
         $checkTpm = (Get-TPM -ESXiHost $ESXiHost).TPMEnabled
         if ($checkTpm -eq $true) {
@@ -308,12 +307,12 @@ Function Get-SecureBoot {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMhost -Name $ESXiHost
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop
     $hostview = Get-View -Id $vmhost.Id -ErrorAction Stop
 
     $secureBootSupported = $hostview.Capability.UefiSecureBoot
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
     $secureBootEnforced = ($esxcli.system.settings.encryption.get.Invoke()).requiresecureboot
     if ($secureBootEnforced -match "true") {
         $secureBootEnforced = $true
@@ -358,7 +357,7 @@ Function Set-SecureBoot {
         } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $false) {
             Write-Output "[$ESXiHost] SecureBoot policy already set to unenforced. Skipping."
         } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $true) {
-            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
             $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
             $arguments.requiresecureboot = $false
@@ -375,11 +374,38 @@ Function Set-SecureBoot {
     } elseif ($secureBoot.SecureBootSupported -eq $false) {
         Write-Output "[$ESXiHost] SecureBoot is not supported on this ESXi host. Skipping."
     }
-
 } Export-ModuleMember -Function Set-SecureBoot
 
 Function Get-ExecInstalledOnlyKernel {
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
+    )
 
+    $vmhost = Get-VMHost -Name $ESXiHost -ErrorAction Stop
+    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+
+    $arguments = $esxcli.system.settings.kernel.list.CreateArgs()
+    $arguments.option = "execInstalledOnly"     
+    $execInstalledOnly = $esxcli.system.settings.kernel.list.Invoke($arguments)
+
+    if ($execInstalledOnly.Configured -eq "TRUE") {
+        $execInstalledOnlyConfigured = $true
+    } elseif ($execInstalledOnly.Configured -eq "FALSE") {
+        $execInstalledOnlyConfigured = $false
+    }
+
+    if ($execInstalledOnly.Runtime -eq "TRUE") {
+        $execInstalledOnlyRuntime = $true
+    } elseif ($execInstalledOnly.Runtime -eq "FALSE") {
+        $execInstalledOnlyRuntime = $false
+    }
+
+    $output = New-Object -TypeName PSCustomObject
+    $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
+    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyKernelConfigured' -NotePropertyValue $execInstalledOnlyConfigured
+    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyKernelRuntime' -NotePropertyValue $execInstalledOnlyRuntime
+
+    $output
 } Export-ModuleMember -Function Get-ExecInstalledOnlyKernel
 
 Function Set-ExecInstalledOnlyKernel {
@@ -387,7 +413,20 @@ Function Set-ExecInstalledOnlyKernel {
 } Export-ModuleMember -Function Set-ExecInstalledOnlyKernel
 
 Function Get-ExecInstalledOnlyPolicy {
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
+    )
 
+    $vmhost = Get-VMHost -Name $ESXiHost -ErrorAction Stop
+    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+
+    $execInstalledOnlyPolicy = $esxcli.system.settings.encryption.get.Invoke()
+
+    $output = New-Object -TypeName PSCustomObject
+    $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
+    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyPolicy' -NotePropertyValue $execInstalledOnlyPolicy.RequireExecutablesOnlyFromInstalledVIBs
+
+    $output
 } Export-ModuleMember -Function Get-ExecInstalledOnlyPolicy
 
 Function Set-ExecInstalledOnlyPolicy {
