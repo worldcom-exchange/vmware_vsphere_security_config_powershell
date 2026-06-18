@@ -4,31 +4,29 @@ function Compare-SecureString {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [System.Security.SecureString]$secureString2
     )
 
-    Process {
-        try {
-            $bstr1 = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString1)
-            $bstr2 = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString2)
-            $length1 = [Runtime.InteropServices.Marshal]::ReadInt32($bstr1, -4)
-            $length2 = [Runtime.InteropServices.Marshal]::ReadInt32($bstr2, -4)
-            if ( $length1 -ne $length2 ) {
+    try {
+        $bstr1 = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString1)
+        $bstr2 = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureString2)
+        $length1 = [Runtime.InteropServices.Marshal]::ReadInt32($bstr1, -4)
+        $length2 = [Runtime.InteropServices.Marshal]::ReadInt32($bstr2, -4)
+        if ( $length1 -ne $length2 ) {
+            return $false
+        }
+        for ( $i = 0; $i -lt $length1; ++$i ) {
+            $b1 = [Runtime.InteropServices.Marshal]::ReadByte($bstr1, $i)
+            $b2 = [Runtime.InteropServices.Marshal]::ReadByte($bstr2, $i)
+            if ( $b1 -ne $b2 ) {
                 return $false
             }
-            for ( $i = 0; $i -lt $length1; ++$i ) {
-                $b1 = [Runtime.InteropServices.Marshal]::ReadByte($bstr1, $i)
-                $b2 = [Runtime.InteropServices.Marshal]::ReadByte($bstr2, $i)
-                if ( $b1 -ne $b2 ) {
-                    return $false
-                }
-            }
-            return $true
         }
-        finally {
-            if ( $bstr1 -ne [IntPtr]::Zero ) {
-                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr1)
-            }
-            if ( $bstr2 -ne [IntPtr]::Zero ) {
-                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr2)
-            }
+        return $true
+    }
+    finally {
+        if ( $bstr1 -ne [IntPtr]::Zero ) {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr1)
+        }
+        if ( $bstr2 -ne [IntPtr]::Zero ) {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr2)
         }
     }
 }
@@ -254,16 +252,15 @@ Function Get-TPM {
 
 } Export-ModuleMember -Function Get-TPM
 
-Function Set-TPM {
+Function Enable-TPM {
     Param (
-        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
-        [Parameter(Mandatory = $true)] [ValidateSet("True", "False")] [String] $Enable
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $currentTpmState = Get-TPM -ESXiHost $ESXiHost
+    $currentTpmState = (Get-TPM -ESXiHost $ESXiHost).tpmEnabled
 
-    if ($enable -eq $currentTpmState) {
-        Write-Host "[$ESXiHost] TPM enabled already set to $enable. Skipping."
+    if ($currentTpmState -eq $true) {
+        Write-Host "[$ESXiHost] TPM is already enabled. Skipping."
     } else {
         $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
 
@@ -274,13 +271,13 @@ Function Set-TPM {
         $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
 
         $checkTpm = (Get-TPM -ESXiHost $ESXiHost).TPMEnabled
-        if ($enable -eq $checkTpm) {
-            Write-Host "[$ESXiHost] TPM enabled set to $enable successfully."
+        if ($checkTpm -eq $true) {
+            Write-Host "[$ESXiHost] TPM enabled successfully."
         } else {
-            Write-Host "[$ESXiHost] TPM enabled was not set to $enable successfully."
+            Write-Host "[$ESXiHost] TPM was not enabled successfully."
         }
     }
-} Export-ModuleMember -Function Set-TPM
+} Export-ModuleMember -Function Enable-TPM
 
 Function Get-SecureBoot {
     Param (
@@ -289,14 +286,23 @@ Function Get-SecureBoot {
 
     $vmhost = Get-VMhost -Name $ESXiHost
     $hostview = Get-View -Id $vmhost.Id -ErrorAction Stop
-    $tpmVersionSupported = $hostview.Capability.TpmVersion
+
     $secureBootSupported = $hostview.Capability.UefiSecureBoot
 
     $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
-    $execInstalledOnlyKernel = $esxcli.system.settings.kernel.list.Invoke() | Where-Object {$_.Name -eq "execInstalledOnly"}
-    $execAndSecureBootEnforced = $esxcli.system.settings.encryption.get.Invoke()
+    $secureBootEnforced = ($esxcli.system.settings.encryption.get.Invoke()).requiresecureboot
+    if ($secureBootEnforced -match "true") {
+        $secureBootEnforced = $true
+    } elseif ($secureBootEnforced -match "false") {
+        $secureBootEnforced = $false
+    }
 
-    
+    $output = New-Object -TypeName PSCustomObject
+    $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
+    $output | Add-Member -NotePropertyName 'SecureBootSupported' -NotePropertyValue $secureBootSupported
+    $output | Add-Member -NotePropertyName 'SecureBootEnforced' -NotePropertyValue $secureBootEnforced
+
+    $output
 
 } Export-ModuleMember -Function Get-SecureBoot
 
