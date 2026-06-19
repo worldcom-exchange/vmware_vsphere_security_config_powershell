@@ -148,7 +148,6 @@ Function Get-EsxiUser {
         
         if (!$esxAccount) {
             Write-Output "[$ESXiHost] User $userName does not exist."
-            Exit
         } else {
             $output = New-Object -TypeName PSCustomObject
             $output | Add-Member -NotePropertyName 'UserID' -NotePropertyValue $esxAccount.UserID
@@ -244,6 +243,43 @@ Function Set-EsxiUser {
         Write-Output "[$ESXiHost] User $userName does not exist."
     }
 } Export-ModuleMember -Function Set-EsxiUser
+
+Function Remove-EsxiUser {
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
+    )
+
+    #Check to see if the account already exists
+    $accountExists = Get-EsxiUser -ESXiHost $ESXiHost -userName $userName
+
+    #If the account exists, remove it
+    if ($accountExists.UserID -eq $userName) {
+        $getConfirmation = Read-Host "Are you sure you want to remove the user $($userName)? (Y/N)"
+
+        if ($getConfirmation -eq "Y") {
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $arguments = $esxcli.system.account.remove.CreateArgs()
+            $arguments.id = $userName
+
+            $arguments = $esxcli.system.account.remove.Invoke($arguments) | Out-Null
+
+            $checkAccountRemoved = Get-ESXiUser -ESXiHost $ESXiHost -userName $userName
+            if ($checkAccountRemoved -match "User $userName does not exist") {
+                Write-Output "[$ESXiHost] User $userName was removed successfully."
+            } else {
+                Write-Output "[$ESXiHost] User $userName was not removed successfully."
+            }
+        } elseif ($getConfirmation -eq "F") {
+            Write-Output "[$ESXiHost] User $userName was not removed."
+        } else {
+            Write-Output "[$ESXiHost] Invalid input. User $userName was not removed."
+        }
+    } else {
+        Write-Output "[$ESXiHost] User $userName does not exist."
+    }
+}
+Export-ModuleMember -Function Remove-EsxiUser
 
 Function Get-TPM {
     Param (
