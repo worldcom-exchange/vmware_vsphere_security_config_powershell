@@ -70,6 +70,64 @@ Param (
     }
 } Export-ModuleMember -Function Set-LockdownMode
 
+Function Get-LockdownModeExceptionUsers {
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
+    )
+
+    $vmhost = Get-VMHost -Name $ESXiHost
+    $getView = Get-View -Id $vmhost.ExtensionData.ConfigManager.HostAccessManager
+
+    $currentLockdownUsers = $getView.QueryLockdownExceptions()
+    $currentLockdownUsers
+
+} Export-ModuleMember -Function Get-LockdownModeExceptionUsers
+
+Function Add-LockdownModeExceptionUser {
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
+    )
+
+    $vmhost = Get-VMHost -Name $ESXiHost
+    $getView = Get-View -Id $vmhost.ExtensionData.ConfigManager.HostAccessManager
+
+    $currentExceptionUsers = Get-LockdownModeExceptionUsers -ESXiHost $ESXiHost
+    $expandedList = $currentExceptionUsers + $userName
+
+    $getView.UpdateLockdownExceptions($expandedList)
+
+    $checkExceptionUsers = Get-LockdownModeExceptionUsers -ESXiHost $ESXiHost
+    if ($checkExceptionUsers -contains $userName) {
+        Write-Output "[$ESXiHost] User $userName successfully added to the exception user list."
+    } else {
+        Write-Output "[$ESXiHost] User $userName was not successfully added to the exception user list."
+    }
+} Export-ModuleMember -Function Add-LockdownModeExceptionUser
+
+Function Remove-LockdownModeExceptionUser {
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
+    )
+
+    $vmhost = Get-VMHost -Name $ESXiHost
+    $getView = Get-View -Id $vmhost.ExtensionData.ConfigManager.HostAccessManager
+
+    $currentExceptionUsers = Get-LockdownModeExceptionUsers -ESXiHost $ESXiHost
+
+    $newLockdownUsers = $currentExceptionUsers.Split(" ") -ne $userName
+
+    $getView.UpdateLockdownExceptions($newLockdownUsers)
+
+    $checkExceptionUsers = Get-LockdownModeExceptionUsers -ESXiHost $ESXiHost
+    if ($checkExceptionUsers -notcontains $userName) {
+        Write-Output "[$ESXiHost] User $userName successfully removed to the exception user list."
+    } else {
+        Write-Output "[$ESXiHost] User $userName was not successfully removed to the exception user list."
+    }
+} Export-ModuleMember -Function Remove-LockdownModeExceptionUser
+
 Function New-EsxiUser {
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
