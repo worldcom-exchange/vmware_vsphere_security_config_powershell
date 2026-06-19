@@ -457,7 +457,8 @@ Function Set-ExecInstalledOnlyKernel {
                 Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully disabled. Please reboot the ESXi host."
             } else {
                 Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully disabled."
-            }        }
+            }        
+        }
     }
 } Export-ModuleMember -Function Set-ExecInstalledOnlyKernel
 
