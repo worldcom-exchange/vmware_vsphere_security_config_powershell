@@ -425,7 +425,19 @@ Function Set-ExecInstalledOnlyKernel {
                 Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled but the runtime value is set to False. Please reboot the ESXi host."
             }
         } elseif ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
-            #Enable kernel setting
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $arguments = $esxcli.system.settings.kernel.set.CreateArgs()
+            $arguments.setting = "execInstalledOnly"
+            $arguments.value   = $true
+
+            $esxcli.system.settings.kernel.set.Invoke($arguments) | Out-Null
+            
+            $checkExecInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
+            if ($checkExecInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully enabled. Please reboot the ESXi host."
+            } else {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully enabled."
+            }
         } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
             if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $false) {
                 Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled and the runtime value is set to False. Skipping."
@@ -433,8 +445,19 @@ Function Set-ExecInstalledOnlyKernel {
                 Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled but the runtime value is set to True. Please reboot the ESXi host."
             } 
         } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
-            #Disable kernel setting
-        }
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $arguments = $esxcli.system.settings.kernel.set.CreateArgs()
+            $arguments.setting = "execInstalledOnly"
+            $arguments.value   = $false
+
+            $esxcli.system.settings.kernel.set.Invoke($arguments) | Out-Null
+            
+            $checkExecInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
+            if ($checkExecInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully disabled. Please reboot the ESXi host."
+            } else {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully disabled."
+            }        }
     }
 } Export-ModuleMember -Function Set-ExecInstalledOnlyKernel
 
