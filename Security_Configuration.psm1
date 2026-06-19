@@ -409,7 +409,33 @@ Function Get-ExecInstalledOnlyKernel {
 } Export-ModuleMember -Function Get-ExecInstalledOnlyKernel
 
 Function Set-ExecInstalledOnlyKernel {
+        Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enabled
+    )
 
+    $execInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
+    if (!$execInstalledOnlyKernel -or !$execInstalledOnlyKernel.ESXiHost) {
+        Write-Output "[$ESXiHost] ESXi host was not found. Skipping."
+    } else {
+        if ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
+            if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $true) {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled and the runtime value is set to True. Skipping."
+            } else {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled but the runtime value is set to False. Please reboot the ESXi host."
+            }
+        } elseif ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
+            #Enable kernel setting
+        } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
+            if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $false) {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled and the runtime value is set to False. Skipping."
+            } else {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled but the runtime value is set to True. Please reboot the ESXi host."
+            } 
+        } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
+            #Disable kernel setting
+        }
+    }
 } Export-ModuleMember -Function Set-ExecInstalledOnlyKernel
 
 Function Get-ExecInstalledOnlyPolicy {
