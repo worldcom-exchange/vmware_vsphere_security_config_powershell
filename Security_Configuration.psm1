@@ -472,6 +472,8 @@ Function Get-ExecInstalledOnlyPolicy {
 
     $execInstalledOnlyPolicy = $esxcli.system.settings.encryption.get.Invoke()
 
+
+
     $output = New-Object -TypeName PSCustomObject
     $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
     $output | Add-Member -NotePropertyName 'ExecInstalledOnlyPolicy' -NotePropertyValue $execInstalledOnlyPolicy.RequireExecutablesOnlyFromInstalledVIBs
@@ -480,5 +482,45 @@ Function Get-ExecInstalledOnlyPolicy {
 } Export-ModuleMember -Function Get-ExecInstalledOnlyPolicy
 
 Function Set-ExecInstalledOnlyPolicy {
+        Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enabled
+    )
 
+    $execInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
+    if (!$execInstalledOnlyPolicy -or !$execInstalledOnlyPolicy.ESXiHost) {
+        Write-Output "[$ESXiHost] ESXi host was not found. Skipping."
+    } else {
+        if ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
+                Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled and the runtime value is set to True. Skipping."
+        } elseif ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+            $arguments.requireexecinstalledonly = $true
+
+            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+            
+            $checkExecInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
+            if ($checkExecInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
+                Write-Output "[$ESXiHost] ExecInstalledOnly policy has been successfully enabled. Please reboot the ESXi host."
+            } else {
+                Write-Output "[$ESXiHost] ExecInstalledOnly policy has not been successfully enabled."
+            }
+        } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
+                Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been disabled and the runtime value is set to False. Skipping."
+        } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+            $arguments.requireexecinstalledonly = $false
+
+            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+            
+            $checkExecInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
+            if ($checkExecInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
+                Write-Output "[$ESXiHost] ExecInstalledOnly policy has been successfully disabled. Please reboot the ESXi host."
+            } else {
+                Write-Output "[$ESXiHost] ExecInstalledOnly policy has not been successfully disabled."
+            }        
+        }
+    }
 } Export-ModuleMember -Function Set-ExecInstalledOnlyPolicy
