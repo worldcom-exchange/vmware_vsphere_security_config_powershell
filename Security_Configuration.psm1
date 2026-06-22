@@ -1,4 +1,21 @@
 function Compare-SecureString {
+        <#
+        .SYNOPSIS
+        Comparison of two secure string objects and return either $true or $false
+
+        .DESCRIPTION
+        The Compare-SecureString compares two secure string objects and returns either $true or $false
+
+        .EXAMPLE
+        Compare-SecureString -secureString1 $secureString1 -secureString2 $secureString2
+
+        .PARAMETER secureString1
+        The first secure string object
+
+        .PARAMETER secureString2
+        The second secure string object
+        #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [System.Security.SecureString]$secureString1,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [System.Security.SecureString]$secureString2
@@ -32,6 +49,20 @@ function Compare-SecureString {
 }
 
 Function Get-LockdownMode {
+    <#
+    .SYNOPSIS
+    Get the current state of an ESXi host Lockdown Mode configuration.
+
+    .DESCRIPTION
+    The Get-LockdownMode cmdlet queries the vCenter Server and returns the LockdownMode value for a specified ESXi host.
+
+    .EXAMPLE
+    Get-LockdownMode -ESXiHost esx-01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host targeted for LockdownMode configuration
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
@@ -46,6 +77,23 @@ Function Get-LockdownMode {
 } Export-ModuleMember -Function Get-LockdownMode
 
 Function Set-LockdownMode {
+    <#
+    .SYNOPSIS
+    Set Lockdown Mode configuration on a specified ESXi host
+
+    .DESCRIPTION
+    The Set-LockdownMode cmdlet sets the LockdownMode configuration for a specified ESXi host
+
+    .EXAMPLE
+    Set-LockdownMode -ESXiHost esx-01.sddc.lab -lockdownLevel lockdownDisabled
+
+    .PARAMETER ESXiHost
+    The ESXi host targeted for LockdownMode configuration
+
+    .PARAMETER lockdownLevel
+    The Lockdown Mode configuration to be applied to the specified ESXi host
+    #>
+
 Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateSet("lockdownDisabled", "lockdownNormal")] [String] $lockdownLevel
@@ -71,6 +119,20 @@ Param (
 } Export-ModuleMember -Function Set-LockdownMode
 
 Function Get-LockdownModeExceptionUsers {
+    <#
+    .SYNOPSIS
+    Get Lockdown Mode exception users on a specified ESXi host
+
+    .DESCRIPTION
+    The Get-LockdownModeExceptionUsers cmdlet gets the LockdownMode exception users for a specified ESXi host
+
+    .EXAMPLE
+    Get-LockdownModeExceptionUsers -ESXiHost esx-01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host targeted for LockdownMode configuration
+    #>
+    
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
@@ -84,6 +146,23 @@ Function Get-LockdownModeExceptionUsers {
 } Export-ModuleMember -Function Get-LockdownModeExceptionUsers
 
 Function Add-LockdownModeExceptionUser {
+    <#
+    .SYNOPSIS
+    Add a local user to the Lockdown Mode exception users list on a specified ESXi host
+
+    .DESCRIPTION
+    The Add-LockdownModeExceptionUser cmdlet adds a local user to the LockdownMode exception users list for a specified ESXi host
+
+    .EXAMPLE
+    Add-LockdownModeExceptionUser -ESXiHost esx-01.sddc.lab -userName vcfadmin
+
+    .PARAMETER ESXiHost
+    The ESXi host targeted for LockdownMode configuration
+
+    .PARAMETER userName
+    The user to be added to the LockdownMode exception users list
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
@@ -106,6 +185,23 @@ Function Add-LockdownModeExceptionUser {
 } Export-ModuleMember -Function Add-LockdownModeExceptionUser
 
 Function Remove-LockdownModeExceptionUser {
+    <#
+    .SYNOPSIS
+    Removes a local user from the Lockdown Mode exception users list on a specified ESXi host
+
+    .DESCRIPTION
+    The Remove-LockdownModeExceptionUser cmdlet removes a local user from the LockdownMode exception users list for a specified ESXi host
+
+    .EXAMPLE
+    Remove-LockdownModeExceptionUser -ESXiHost esx-01.sddc.lab -userName vcfadmin
+
+    .PARAMETER ESXiHost
+    The ESXi host targeted for LockdownMode configuration
+
+    .PARAMETER userName
+    The user to be removed from the LockdownMode exception users list
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
@@ -129,6 +225,23 @@ Function Remove-LockdownModeExceptionUser {
 } Export-ModuleMember -Function Remove-LockdownModeExceptionUser
 
 Function New-EsxiUser {
+    <#
+    .SYNOPSIS
+    Create a local user on a specified ESXi host
+
+    .DESCRIPTION
+    The New-ESXiUser cmdlet creates a local user on a specified ESXi host
+
+    .EXAMPLE
+    New-ESXiUser -ESXiHost esx-01.sddc.lab -userName vcfadmin
+
+    .PARAMETER ESXiHost
+    The ESXi host targeted for new user creation
+
+    .PARAMETER userName
+    The user to be created
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
@@ -178,6 +291,23 @@ Function New-EsxiUser {
 Export-ModuleMember -Function New-EsxiUser
 
 Function Get-EsxiUser {
+    <#
+    .SYNOPSIS
+    Retrieves all users or a specified user on an ESXi host
+
+    .DESCRIPTION
+    The Get-ESXiUser cmdlet retrieves all users or a specified user on an ESXi host
+
+    .EXAMPLE
+    Get-ESXiUser -ESXiHost esx-01.sddc.lab -userName vcfadmin
+
+    .PARAMETER ESXiHost
+    The ESXi host queried for local users
+
+    .PARAMETER userName
+    The user to be returned (Optional)
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $false)] [ValidateNotNullOrEmpty()] [String] $userName
@@ -219,6 +349,29 @@ Function Get-EsxiUser {
 } Export-ModuleMember -Function Get-EsxiUser
 
 Function Set-EsxiUser {
+    <#
+    .SYNOPSIS
+    Sets one or more values for a specified user on an ESXi host
+
+    .DESCRIPTION
+    The Set-ESXiUser cmdlet sets one or more values for a specified user on an ESXi host
+
+    .EXAMPLE
+    Set-ESXiUser -ESXiHost esx-01.sddc.lab -userName vcfadmin -shellAccess True -role Admin
+
+    .PARAMETER ESXiHost
+    The ESXi targeted for local user configuration
+
+    .PARAMETER userName
+    The user to be configured
+
+    .PARAMETER shellAccess
+    Configuration of shell access for the targeted user
+
+    .PARAMETER role
+    The role to be assigned to the targeted user
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName,
@@ -303,6 +456,23 @@ Function Set-EsxiUser {
 } Export-ModuleMember -Function Set-EsxiUser
 
 Function Remove-EsxiUser {
+    <#
+    .SYNOPSIS
+    Removes a specified user on an ESXi host
+
+    .DESCRIPTION
+    The Remove-ESXiUser cmdlet removes a specified user on an ESXi host
+
+    .EXAMPLE
+    Remove-ESXiUser -ESXiHost esx-01.sddc.lab -userName vcfadmin
+
+    .PARAMETER ESXiHost
+    The ESXi targeted for local user removal
+
+    .PARAMETER userName
+    The user to be removed
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
@@ -340,6 +510,20 @@ Function Remove-EsxiUser {
 Export-ModuleMember -Function Remove-EsxiUser
 
 Function Get-TPM {
+    <#
+    .SYNOPSIS
+    Gets the TPM configuration for an ESXi host
+
+    .DESCRIPTION
+    The Get-TPM cmdlet gets the TPM configuration for an ESXi host
+
+    .EXAMPLE
+    Get-TPM -ESXiHost esx-01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its TPM configuration 
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
@@ -370,6 +554,20 @@ Function Get-TPM {
 } Export-ModuleMember -Function Get-TPM
 
 Function Enable-TPM {
+    <#
+    .SYNOPSIS
+    Enables TPM mode on an ESXi host
+
+    .DESCRIPTION
+    The Enable-TPM cmdlet enables TPM mode on an ESXi host
+
+    .EXAMPLE
+    Enable-TPM -ESXiHost esx-01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host to be configured for TPM mode
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
@@ -397,6 +595,20 @@ Function Enable-TPM {
 } Export-ModuleMember -Function Enable-TPM
 
 Function Get-SecureBoot {
+    <#
+    .SYNOPSIS
+    Gets the SecureBoot configuration for an ESXi host
+
+    .DESCRIPTION
+    The Get-SecureBoot cmdlet gets the SecureBoot configuration for an ESXi host
+
+    .EXAMPLE
+    Get-SecureBoot -ESXiHost esx-01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its SecureBoot configuration 
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
@@ -424,6 +636,23 @@ Function Get-SecureBoot {
 } Export-ModuleMember -Function Get-SecureBoot
 
 Function Set-SecureBoot {
+    <#
+    .SYNOPSIS
+    Sets the SecureBoot configuration (enabled/disabled) for an ESXi host
+
+    .DESCRIPTION
+    The Set-SecureBoot cmdlet sets the SecureBoot configuration (enabled/disabled) for an ESXi host
+
+    .EXAMPLE
+    Set-SecureBoot -ESXiHost esx-01.sddc.lab -Enforced True
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its TPM configuration 
+
+    .PARAMETER Enforced
+    Specifies whether the SecureBoot configuration should be enabled
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enforced
@@ -471,6 +700,20 @@ Function Set-SecureBoot {
 } Export-ModuleMember -Function Set-SecureBoot
 
 Function Get-ExecInstalledOnlyKernel {
+    <#
+    .SYNOPSIS
+    Gets the execInstalledOnly kernel module configuration for an ESXi host
+
+    .DESCRIPTION
+    The Get-ExecInstalledOnlyKernel cmdlet gets the execInstalledOnly kernel module configuration for an ESXi host
+
+    .EXAMPLE
+    Get-ExecInstalledOnlyKernel -ESXiHost esx-01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its execInstalledOnly kernel module configuration 
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
@@ -503,6 +746,23 @@ Function Get-ExecInstalledOnlyKernel {
 } Export-ModuleMember -Function Get-ExecInstalledOnlyKernel
 
 Function Set-ExecInstalledOnlyKernel {
+    <#
+    .SYNOPSIS
+    Sets the execInstalledOnly kernel module configuration for an ESXi host
+
+    .DESCRIPTION
+    The Set-ExecInstalledOnlyKernel cmdlet sets the execInstalledOnly kernel module configuration for an ESXi host
+
+    .EXAMPLE
+    Set-ExecInstalledOnlyKernel -ESXiHost esx-01.sddc.lab -Enabled True
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its execInstalledOnly kernel module configuration 
+
+    .PARAMETER Enabled
+    Specifies whether the execInstalledOnly kernel module should be enabled
+    #>
+
         Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enabled
@@ -557,6 +817,20 @@ Function Set-ExecInstalledOnlyKernel {
 } Export-ModuleMember -Function Set-ExecInstalledOnlyKernel
 
 Function Get-ExecInstalledOnlyPolicy {
+    <#
+    .SYNOPSIS
+    Gets the execInstalledOnly policy configuration for an ESXi host
+
+    .DESCRIPTION
+    The Get-ExecInstalledOnlyPolicy cmdlet gets the execInstalledOnly policy configuration for an ESXi host
+
+    .EXAMPLE
+    Get-ExecInstalledOnlyPolicy -ESXiHost esx-01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its execInstalledOnly policy configuration 
+    #>
+
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
@@ -583,6 +857,23 @@ Function Get-ExecInstalledOnlyPolicy {
 } Export-ModuleMember -Function Get-ExecInstalledOnlyPolicy
 
 Function Set-ExecInstalledOnlyPolicy {
+    <#
+    .SYNOPSIS
+    Sets the execInstalledOnly policy configuration for an ESXi host
+
+    .DESCRIPTION
+    The Set-ExecInstalledOnlyPolicy cmdlet sets the execInstalledOnly policy configuration for an ESXi host
+
+    .EXAMPLE
+    Set-ExecInstalledOnlyPolicy -ESXiHost esx-01.sddc.lab -Enabled True
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its execInstalledOnly policy configuration 
+
+    .PARAMETER Enabled
+    Specifies whether the execInstalledOnly policy should be enabled
+    #>
+
         Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enabled
