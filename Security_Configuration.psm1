@@ -845,9 +845,6 @@ Function Get-ExecInstalledOnlyPolicy {
     } elseif ($execInstalledOnlyPolicy.RequireExecutablesOnlyFromInstalledVIBs -match "false") {
         $execInstalledOnlyPolicyOutput = $false
     }
-    
-    Write-Output "$execInstalledOnlyPolicy.RequireExecutablesOnlyFromInstalledVIBs: $($execInstalledOnlyPolicy.RequireExecutablesOnlyFromInstalledVIBs)"
-    Write-Output "The variable execInstalledOnlyPolicyOutput is set to $execInstalledOnlyPolicyOutput"
 
     $output = New-Object -TypeName PSCustomObject
     $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
