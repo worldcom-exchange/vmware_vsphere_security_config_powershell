@@ -281,6 +281,8 @@ Function New-EsxiUser {
         $checkNewAccount = $getAccounts | Where-Object { $_.UserID -eq $userName }
         if (($checkNewAccount) -and ($checkNewAccount.shellaccess -eq $true)) {
             Write-Output "[$ESXiHost] $userName was created and configured successfully."
+            $output = Get-EsxiUser -ESXiHost $ESXiHost -userName $userName
+            $output
         } else {
             Write-Output "[$ESXiHost] $userName was not created and configured successfully."
         }
