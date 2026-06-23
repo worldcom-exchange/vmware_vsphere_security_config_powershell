@@ -915,3 +915,35 @@ Function Set-ExecInstalledOnlyPolicy {
         }
     }
 } Export-ModuleMember -Function Set-ExecInstalledOnlyPolicy
+
+Function Get-ESXiHostRecoveryKey {
+    <#
+    .SYNOPSIS
+    Gets the execInstalledOnly kernel module configuration for an ESXi host
+
+    .DESCRIPTION
+    The Get-ExecInstalledOnlyKernel cmdlet gets the execInstalledOnly kernel module configuration for an ESXi host
+
+    .EXAMPLE
+    Get-ExecInstalledOnlyKernel -ESXiHost esx-01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its execInstalledOnly kernel module configuration 
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
+    )
+
+    $vmhost = Get-VMHost -Name $ESXiHost -ErrorAction Stop
+    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+
+    $getRecoveryKey = $esxcli.system.settings.encryption.recovery.list.Invoke()
+
+    $output = New-Object -TypeName PSCustomObject
+    $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
+    $output | Add-Member -NotePropertyName 'RecoveryID' -NotePropertyValue $getRecoveryKey.RecoveryID
+    $output | Add-Member -NotePropertyName 'RecoveryKey' -NotePropertyValue $getRecoveryKey.Key
+
+    $output | Format-List
+} Export-ModuleMember -Function Get-ESXiHostRecoveryKey
