@@ -726,7 +726,7 @@ Function Get-ExecInstalledOnlyKernel {
     )
 
     $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+    $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
 
     $arguments = $esxcli.system.settings.kernel.list.CreateArgs()
     $arguments.option = "execInstalledOnly"     
