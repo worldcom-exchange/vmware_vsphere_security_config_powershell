@@ -67,7 +67,7 @@ Function Get-LockdownMode {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     
     $output = New-Object -TypeName PSCustomObject
     $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
@@ -104,7 +104,7 @@ Param (
     if ($currentLevel -eq $lockdownLevel) {
         Write-Output "[$ESXiHost] Lockdown Mode level already set to $lockdownLevel. Skipping."
     } else {
-        $vmhost = Get-VMhost -Name $ESXiHost
+        $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
         $lockdownMode = Get-View (Get-View -ViewType HostSystem -Filter @{"Name"="$VMhost"}).ConfigManager.HostAccessManager
         $lockdownMode.ChangeLockdownMode($lockdownLevel)
 
@@ -137,7 +137,7 @@ Function Get-LockdownModeExceptionUsers {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMHost -Name $ESXiHost
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     $getView = Get-View -Id $vmhost.ExtensionData.ConfigManager.HostAccessManager
 
     $currentLockdownUsers = $getView.QueryLockdownExceptions()
@@ -168,7 +168,7 @@ Function Add-LockdownModeExceptionUser {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
     )
 
-    $vmhost = Get-VMHost -Name $ESXiHost
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     $getView = Get-View -Id $vmhost.ExtensionData.ConfigManager.HostAccessManager
 
     $currentExceptionUsers = Get-LockdownModeExceptionUsers -ESXiHost $ESXiHost
@@ -207,7 +207,7 @@ Function Remove-LockdownModeExceptionUser {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
     )
 
-    $vmhost = Get-VMHost -Name $ESXiHost
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     $getView = Get-View -Id $vmhost.ExtensionData.ConfigManager.HostAccessManager
 
     $currentExceptionUsers = Get-LockdownModeExceptionUsers -ESXiHost $ESXiHost
@@ -247,7 +247,8 @@ Function New-EsxiUser {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
     )
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
 
     #Check to see if the account already exists
     $esxAccounts = $esxcli.system.account.list.Invoke()
@@ -315,7 +316,8 @@ Function Get-EsxiUser {
         [Parameter(Mandatory = $false)] [ValidateNotNullOrEmpty()] [String] $userName
     )
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
 
     if (!$userName) {
         $outputs = @()
@@ -381,7 +383,8 @@ Function Set-EsxiUser {
         [Parameter(Mandatory = $false)] [ValidateSet("Admin", "ReadOnly", "NoAccess")] [String] $role
     )
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
 
     #Check to see if the account exists
     $esxAccounts = $esxcli.system.account.list.Invoke()
@@ -530,7 +533,7 @@ Function Get-TPM {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     $hostview = Get-View -Id $vmhost.Id -ErrorAction Stop
     $tpmVersionSupported = $hostview.Capability.TpmVersion
 
@@ -579,7 +582,8 @@ Function Enable-TPM {
     if ($currentTpmState -eq $true) {
         Write-Host "[$ESXiHost] TPM is already enabled. Skipping."
     } else {
-        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+        $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+        $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
 
         $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
         $arguments.mode = "TPM"
@@ -615,12 +619,12 @@ Function Get-SecureBoot {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     $hostview = Get-View -Id $vmhost.Id -ErrorAction Stop
 
     $secureBootSupported = $hostview.Capability.UefiSecureBoot
 
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+    $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
     $secureBootEnforced = ($esxcli.system.settings.encryption.get.Invoke()).requiresecureboot
     if ($secureBootEnforced -match "true") {
         $secureBootEnforced = $true
@@ -666,7 +670,8 @@ Function Set-SecureBoot {
         if ($Enforced -match "True"  -and $secureBoot.SecureBootEnforced -eq $true) {
             Write-Output "[$ESXiHost] SecureBoot policy already set to enforced. Skipping."
         } elseif ($Enforced -match "True" -and $secureBoot.SecureBootEnforced -eq $false){
-            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2
+            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
 
             $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
             $arguments.requiresecureboot = $true
@@ -720,7 +725,7 @@ Function Get-ExecInstalledOnlyKernel {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMHost -Name $ESXiHost -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
     $arguments = $esxcli.system.settings.kernel.list.CreateArgs()
@@ -781,7 +786,9 @@ Function Set-ExecInstalledOnlyKernel {
                 Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled but the runtime value is set to False. Please reboot the ESXi host."
             }
         } elseif ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
-            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+
             $arguments = $esxcli.system.settings.kernel.set.CreateArgs()
             $arguments.setting = "execInstalledOnly"
             $arguments.value   = $true
@@ -801,7 +808,9 @@ Function Set-ExecInstalledOnlyKernel {
                 Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled but the runtime value is set to True. Please reboot the ESXi host."
             } 
         } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
-            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+
             $arguments = $esxcli.system.settings.kernel.set.CreateArgs()
             $arguments.setting = "execInstalledOnly"
             $arguments.value   = $false
@@ -837,7 +846,7 @@ Function Get-ExecInstalledOnlyPolicy {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMHost -Name $ESXiHost -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
     $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
     $execInstalledOnlyPolicy = $esxcli.system.settings.encryption.get.Invoke()
@@ -885,7 +894,9 @@ Function Set-ExecInstalledOnlyPolicy {
         if ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
                 Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been enabled. Skipping."
         } elseif ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
-            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+
             $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
             $arguments.requireexecinstalledonly = $true
 
@@ -900,7 +911,9 @@ Function Set-ExecInstalledOnlyPolicy {
         } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
                 Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been disabled. Skipping."
         } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
-            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+            
             $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
             $arguments.requireexecinstalledonly = $false
 
@@ -919,31 +932,36 @@ Function Set-ExecInstalledOnlyPolicy {
 Function Get-ESXiHostRecoveryKey {
     <#
     .SYNOPSIS
-    Gets the execInstalledOnly kernel module configuration for an ESXi host
+    Gets the TPM recovery key for an ESXi host
 
     .DESCRIPTION
-    The Get-ExecInstalledOnlyKernel cmdlet gets the execInstalledOnly kernel module configuration for an ESXi host
+    The Get-ESXiHostRecoveryKey cmdlet gets the TPM recovery key for an ESXi host
 
     .EXAMPLE
-    Get-ExecInstalledOnlyKernel -ESXiHost esx-01.sddc.lab
+    Get-ESXiHostRecoveryKey -ESXiHost esx-01.sddc.lab
 
     .PARAMETER ESXiHost
-    The ESXi host to be queried for its execInstalledOnly kernel module configuration 
+    The ESXi host to be queried for its TPM recovery key 
     #>
 
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $vmhost = Get-VMHost -Name $ESXiHost -ErrorAction Stop
-    $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    if ($vmhost) {
+        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
-    $getRecoveryKey = $esxcli.system.settings.encryption.recovery.list.Invoke()
+        $getRecoveryKey = $esxcli.system.settings.encryption.recovery.list.Invoke()
 
-    $output = New-Object -TypeName PSCustomObject
-    $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
-    $output | Add-Member -NotePropertyName 'RecoveryID' -NotePropertyValue $getRecoveryKey.RecoveryID
-    $output | Add-Member -NotePropertyName 'RecoveryKey' -NotePropertyValue $getRecoveryKey.Key
+        $output = New-Object -TypeName PSCustomObject
+        $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
+        $output | Add-Member -NotePropertyName 'RecoveryID' -NotePropertyValue $getRecoveryKey.RecoveryID
+        $output | Add-Member -NotePropertyName 'RecoveryKey' -NotePropertyValue $getRecoveryKey.Key
 
-    $output | Format-List
+        $output | Format-List
+    } else {
+        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+    }
+
 } Export-ModuleMember -Function Get-ESXiHostRecoveryKey
