@@ -910,7 +910,7 @@ Function Set-ExecInstalledOnlyPolicy {
             }
         } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
                 Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been disabled. Skipping."
-        } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicyConfigured -eq $true) {
+        } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
             $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
             $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
             
