@@ -14,9 +14,6 @@
     # Company or vendor of this module
     CompanyName       = 'Worldcom Exchange, Inc'
 
-    # Copyright statement for this module
-    Copyright         = 'Copyright 2023-2024 Broadcom. All Rights Reserved.'
-
     # Description of the functionality provided by this module
     Description       = 'PowerShell Module for Security Configuration'
 
