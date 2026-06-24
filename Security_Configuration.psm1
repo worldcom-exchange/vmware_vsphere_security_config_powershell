@@ -577,25 +577,31 @@ Function Enable-TPM {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
     )
 
-    $currentTpmState = (Get-TPM -ESXiHost $ESXiHost).tpmEnabled
+    $checkLockdownMode = Get-LockdownMode -ESXiHost $ESXiHost
+    if ($checkLockdownMode.LockdownMode -eq "lockdownNormal" -or $checkLockdownMode.LockdownMode -eq "lockdownStrict") {
+        Write-Output "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
+        Break
+    } elseif ($checkLockdownMode.LockdownMode -eq "lockdownDisabled") {
+        $currentTpmState = (Get-TPM -ESXiHost $ESXiHost).tpmEnabled
 
-    if ($currentTpmState -eq $true) {
-        Write-Host "[$ESXiHost] TPM is already enabled. Skipping."
-    } else {
-        $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
-        $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
-
-        $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
-        $arguments.mode = "TPM"
-
-        $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
-        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
-
-        $checkTpm = (Get-TPM -ESXiHost $ESXiHost).TPMEnabled
-        if ($checkTpm -eq $true) {
-            Write-Host "[$ESXiHost] TPM enabled successfully."
+        if ($currentTpmState -eq $true) {
+            Write-Host "[$ESXiHost] TPM is already enabled. Skipping."
         } else {
-            Write-Host "[$ESXiHost] TPM was not enabled successfully."
+            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+
+            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+            $arguments.mode = "TPM"
+
+            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+
+            $checkTpm = (Get-TPM -ESXiHost $ESXiHost).TPMEnabled
+            if ($checkTpm -eq $true) {
+                Write-Host "[$ESXiHost] TPM enabled successfully."
+            } else {
+                Write-Host "[$ESXiHost] TPM was not enabled successfully."
+            }
         }
     }
 } Export-ModuleMember -Function Enable-TPM
@@ -664,45 +670,51 @@ Function Set-SecureBoot {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enforced
     )
 
-    $secureBoot = Get-SecureBoot -ESXiHost $ESXiHost
-    
-    if ($secureBoot.SecureBootSupported -eq $true) {
-        if ($Enforced -match "True"  -and $secureBoot.SecureBootEnforced -eq $true) {
-            Write-Output "[$ESXiHost] SecureBoot policy already set to enforced. Skipping."
-        } elseif ($Enforced -match "True" -and $secureBoot.SecureBootEnforced -eq $false){
-            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
-            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+    $checkLockdownMode = Get-LockdownMode -ESXiHost $ESXiHost
+    if ($checkLockdownMode.LockdownMode -eq "lockdownNormal" -or $checkLockdownMode.LockdownMode -eq "lockdownStrict") {
+        Write-Output "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
+        Break
+    } elseif ($checkLockdownMode.LockdownMode -eq "lockdownDisabled") {
+        $secureBoot = Get-SecureBoot -ESXiHost $ESXiHost
+        
+        if ($secureBoot.SecureBootSupported -eq $true) {
+            if ($Enforced -match "True"  -and $secureBoot.SecureBootEnforced -eq $true) {
+                Write-Output "[$ESXiHost] SecureBoot policy already set to enforced. Skipping."
+            } elseif ($Enforced -match "True" -and $secureBoot.SecureBootEnforced -eq $false){
+                $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+                $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
 
-            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
-            $arguments.requiresecureboot = $true
+                $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+                $arguments.requiresecureboot = $true
 
-            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+                $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
 
-            $checkSecureBoot = Get-SecureBoot -ESXiHost $ESXiHost
-            if ($checkSecureBoot.SecureBootEnforced -eq $true) {
-                Write-Output "[$ESXiHost] SecureBoot policy successfully set to enforced."
-            } else {
-                Write-Output "[$ESXiHost] SecureBoot policy was not successfully set to enforced."
+                $checkSecureBoot = Get-SecureBoot -ESXiHost $ESXiHost
+                if ($checkSecureBoot.SecureBootEnforced -eq $true) {
+                    Write-Output "[$ESXiHost] SecureBoot policy successfully set to enforced."
+                } else {
+                    Write-Output "[$ESXiHost] SecureBoot policy was not successfully set to enforced."
+                }
+            } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $false) {
+                Write-Output "[$ESXiHost] SecureBoot policy already set to unenforced. Skipping."
+            } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $true) {
+                $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+
+                $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+                $arguments.requiresecureboot = $false
+
+                $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+
+                $checkSecureBoot = Get-SecureBoot -ESXiHost $ESXiHost
+                if ($checkSecureBoot.SecureBootEnforced -eq $false) {
+                    Write-Output "[$ESXiHost] SecureBoot policy successfully set to disabled."
+                } else {
+                    Write-Output "[$ESXiHost] SecureBoot policy was not successfully set to disabled."
+                }
             }
-        } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $false) {
-            Write-Output "[$ESXiHost] SecureBoot policy already set to unenforced. Skipping."
-        } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $true) {
-            $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
-
-            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
-            $arguments.requiresecureboot = $false
-
-            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
-
-            $checkSecureBoot = Get-SecureBoot -ESXiHost $ESXiHost
-            if ($checkSecureBoot.SecureBootEnforced -eq $false) {
-                Write-Output "[$ESXiHost] SecureBoot policy successfully set to disabled."
-            } else {
-                Write-Output "[$ESXiHost] SecureBoot policy was not successfully set to disabled."
-            }
+        } elseif ($secureBoot.SecureBootSupported -eq $false) {
+            Write-Output "[$ESXiHost] SecureBoot is not supported on this ESXi host. Skipping."
         }
-    } elseif ($secureBoot.SecureBootSupported -eq $false) {
-        Write-Output "[$ESXiHost] SecureBoot is not supported on this ESXi host. Skipping."
     }
 } Export-ModuleMember -Function Set-SecureBoot
 
@@ -775,54 +787,60 @@ Function Set-ExecInstalledOnlyKernel {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enabled
     )
 
-    $execInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
-    if (!$execInstalledOnlyKernel -or !$execInstalledOnlyKernel.ESXiHost) {
-        Write-Output "[$ESXiHost] ESXi host was not found. Skipping."
-    } else {
-        if ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
-            if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $true) {
-                Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled and the runtime value is set to True. Skipping."
-            } else {
-                Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled but the runtime value is set to False. Please reboot the ESXi host."
+    $checkLockdownMode = Get-LockdownMode -ESXiHost $ESXiHost
+    if ($checkLockdownMode.LockdownMode -eq "lockdownNormal" -or $checkLockdownMode.LockdownMode -eq "lockdownStrict") {
+        Write-Output "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
+        Break
+    } elseif ($checkLockdownMode.LockdownMode -eq "lockdownDisabled") {
+        $execInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
+        if (!$execInstalledOnlyKernel -or !$execInstalledOnlyKernel.ESXiHost) {
+            Write-Output "[$ESXiHost] ESXi host was not found. Skipping."
+        } else {
+            if ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
+                if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $true) {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled and the runtime value is set to True. Skipping."
+                } else {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled but the runtime value is set to False. Please reboot the ESXi host."
+                }
+            } elseif ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
+                $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+                $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+
+                $arguments = $esxcli.system.settings.kernel.set.CreateArgs()
+                $arguments.setting = "execInstalledOnly"
+                $arguments.value   = $true
+
+                $esxcli.system.settings.kernel.set.Invoke($arguments) | Out-Null
+                
+                $checkExecInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
+                if ($checkExecInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully enabled. Please reboot the ESXi host."
+                } else {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully enabled."
+                }
+            } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
+                if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $false) {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled and the runtime value is set to False. Skipping."
+                } else {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled but the runtime value is set to True. Please reboot the ESXi host."
+                } 
+            } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
+                $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+                $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+
+                $arguments = $esxcli.system.settings.kernel.set.CreateArgs()
+                $arguments.setting = "execInstalledOnly"
+                $arguments.value   = $false
+
+                $esxcli.system.settings.kernel.set.Invoke($arguments) | Out-Null
+                
+                $checkExecInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
+                if ($checkExecInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully disabled. Please reboot the ESXi host."
+                } else {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully disabled."
+                }        
             }
-        } elseif ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
-            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
-            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
-
-            $arguments = $esxcli.system.settings.kernel.set.CreateArgs()
-            $arguments.setting = "execInstalledOnly"
-            $arguments.value   = $true
-
-            $esxcli.system.settings.kernel.set.Invoke($arguments) | Out-Null
-            
-            $checkExecInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
-            if ($checkExecInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
-                Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully enabled. Please reboot the ESXi host."
-            } else {
-                Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully enabled."
-            }
-        } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
-            if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $false) {
-                Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled and the runtime value is set to False. Skipping."
-            } else {
-                Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled but the runtime value is set to True. Please reboot the ESXi host."
-            } 
-        } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
-            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
-            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
-
-            $arguments = $esxcli.system.settings.kernel.set.CreateArgs()
-            $arguments.setting = "execInstalledOnly"
-            $arguments.value   = $false
-
-            $esxcli.system.settings.kernel.set.Invoke($arguments) | Out-Null
-            
-            $checkExecInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
-            if ($checkExecInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
-                Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully disabled. Please reboot the ESXi host."
-            } else {
-                Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully disabled."
-            }        
         }
     }
 } Export-ModuleMember -Function Set-ExecInstalledOnlyKernel
@@ -887,44 +905,50 @@ Function Set-ExecInstalledOnlyPolicy {
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Enabled
     )
 
-    $execInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
-    if (!$execInstalledOnlyPolicy -or !$execInstalledOnlyPolicy.ESXiHost) {
-        Write-Output "[$ESXiHost] ESXi host was not found. Skipping."
-    } else {
-        if ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
-                Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been enabled. Skipping."
-        } elseif ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
-            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
-            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+    $checkLockdownMode = Get-LockdownMode -ESXiHost $ESXiHost
+    if ($checkLockdownMode.LockdownMode -eq "lockdownNormal" -or $checkLockdownMode.LockdownMode -eq "lockdownStrict") {
+        Write-Output "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
+        Break
+    } elseif ($checkLockdownMode.LockdownMode -eq "lockdownDisabled") {
+        $execInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
+        if (!$execInstalledOnlyPolicy -or !$execInstalledOnlyPolicy.ESXiHost) {
+            Write-Output "[$ESXiHost] ESXi host was not found. Skipping."
+        } else {
+            if ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been enabled. Skipping."
+            } elseif ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
+                $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+                $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
 
-            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
-            $arguments.requireexecinstalledonly = $true
+                $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+                $arguments.requireexecinstalledonly = $true
 
-            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
-            
-            $checkExecInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
-            if ($checkExecInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
-                Write-Output "[$ESXiHost] ExecInstalledOnly policy has been successfully enabled. Please reboot the ESXi host."
-            } else {
-                Write-Output "[$ESXiHost] ExecInstalledOnly policy has not been successfully enabled."
+                $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+                
+                $checkExecInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
+                if ($checkExecInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has been successfully enabled. Please reboot the ESXi host."
+                } else {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has not been successfully enabled."
+                }
+            } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been disabled. Skipping."
+            } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
+                $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+                $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+                
+                $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
+                $arguments.requireexecinstalledonly = $false
+
+                $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
+                
+                $checkExecInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
+                if ($checkExecInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has been successfully disabled. Please reboot the ESXi host."
+                } else {
+                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has not been successfully disabled."
+                }        
             }
-        } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
-                Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been disabled. Skipping."
-        } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
-            $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
-            $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
-            
-            $arguments = $esxcli.system.settings.encryption.set.CreateArgs()
-            $arguments.requireexecinstalledonly = $false
-
-            $esxcli.system.settings.encryption.set.Invoke($arguments) | Out-Null
-            
-            $checkExecInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
-            if ($checkExecInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
-                Write-Output "[$ESXiHost] ExecInstalledOnly policy has been successfully disabled. Please reboot the ESXi host."
-            } else {
-                Write-Output "[$ESXiHost] ExecInstalledOnly policy has not been successfully disabled."
-            }        
         }
     }
 } Export-ModuleMember -Function Set-ExecInstalledOnlyPolicy
