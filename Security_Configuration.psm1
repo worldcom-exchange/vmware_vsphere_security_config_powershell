@@ -1,20 +1,23 @@
 function Compare-SecureString {
-        <#
-        .SYNOPSIS
-        Comparison of two secure string objects and return either $true or $false
+    #Adapted from code by @pspete
+    #https://www.powershellgallery.com/packages/IdentityCommand/0.3.61
 
-        .DESCRIPTION
-        The Compare-SecureString compares two secure string objects and returns either $true or $false
+    <#
+    .SYNOPSIS
+    Comparison of two secure string objects and return either $true or $false
 
-        .EXAMPLE
-        Compare-SecureString -secureString1 $secureString1 -secureString2 $secureString2
+    .DESCRIPTION
+    The Compare-SecureString compares two secure string objects and returns either $true or $false
 
-        .PARAMETER secureString1
-        The first secure string object
+    .EXAMPLE
+    Compare-SecureString -secureString1 $secureString1 -secureString2 $secureString2
 
-        .PARAMETER secureString2
-        The second secure string object
-        #>
+    .PARAMETER secureString1
+    The first secure string object
+
+    .PARAMETER secureString2
+    The second secure string object
+    #>
 
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [System.Security.SecureString]$secureString1,
