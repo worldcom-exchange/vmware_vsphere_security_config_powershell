@@ -514,6 +514,67 @@ Function Remove-EsxiUser {
 }
 Export-ModuleMember -Function Remove-EsxiUser
 
+Function Reset-EsxiUserPassword {
+    <#
+    .SYNOPSIS
+    Reset the password for a local user on a specified ESXi host
+
+    .DESCRIPTION
+    The Reset-EsxiUserPassword cmdlet resets the password for a local user on a specified ESXi host
+
+    .EXAMPLE
+    Reset-EsxiUserPassword -ESXiHost esx-01.sddc.lab -userName vcfadmin
+
+    .PARAMETER ESXiHost
+    The ESXi host targeted for new user creation
+
+    .PARAMETER userName
+    The user to have their password reset
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $userName
+    )
+
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
+
+    #Check to see if the account already exists
+    $checkAccountExists = Get-EsxiUser -ESXiHost $vmhost.Name -userName $userName
+
+    #If the account doesn't exist, create it
+    if ($checkAccountExists.UserID -eq $userName) {
+        do {
+            $getCredentialA = Read-Host "Enter the new password for $userName" -AsSecureString
+            $getCredentialB = Read-Host "Confirm the new password for $userName" -AsSecureString
+
+            $compareCredentials = Compare-SecureString -SecureString1 $getCredentialA -SecureString2 $getCredentialB
+            if ($compareCredentials -eq $false) {
+                Write-Warning "Passwords do not match. Re-enter the new password for $userName"
+            }
+        } until ($compareCredentials -eq $true)
+
+        $newUserCreds = New-Object System.Management.Automation.PSCredential($userName, $getCredentialA)
+
+        $arguments = $esxcli.system.account.set.CreateArgs()
+        $arguments.id = $userName
+        $arguments.password = "$($newUserCreds.GetNetworkCredential().Password)"
+        $arguments.passwordconfirmation = "$($newUserCreds.GetNetworkCredential().Password)"
+
+        $invokePasswordReset = $esxcli.system.account.set.Invoke($arguments)
+
+        if ($invokePasswordReset -eq $true) {
+            Write-Output "[$ESXiHost] $userName password was successfully reset."
+        } else {
+            Write-Output "[$ESXiHost] $userName password was not reset successfully."
+        }
+    } else {
+        Write-Output "[$ESXiHost] $userName does not exist. Skipping."
+    }
+}
+Export-ModuleMember -Function Reset-EsxiUserPassword
+
 Function Get-TPM {
     <#
     .SYNOPSIS
