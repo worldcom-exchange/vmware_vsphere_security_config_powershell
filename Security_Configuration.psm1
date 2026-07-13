@@ -1053,3 +1053,74 @@ Function Get-ESXiHostRecoveryKey {
     }
 
 } Export-ModuleMember -Function Get-ESXiHostRecoveryKey
+
+Function Get-VCSAFirewallConfig {
+    <#
+    .SYNOPSIS
+    Gets the firewall configuration of a vCenter Server virtual appliance
+
+    .DESCRIPTION
+    The Get-VCSAFirewallConfig cmdlet gets the firewall configuration of a vCenter Server virtual appliance
+
+    .EXAMPLE
+    Get-VCSAFirewallConfig -Server vcsa01.sddc.lab
+
+    .PARAMETER Server
+    The vCenter Server virtual appliance to be queried for its firewall configuration
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Server
+    )
+
+    if ($Server -match $global:DefaultVIServers) {
+        $firewall = Invoke-GetNetworkingFirewallInbound
+
+        $firewall
+    } else {
+        Write-Output "[$Server] Not connected to vCenter Server virtual appliance."
+    }
+
+} Export-ModuleMember -Function Get-VCSAFirewallConfig
+
+Function Set-VCSAFirewallConfig {
+    <#
+    .SYNOPSIS
+    Sets the firewall configuration of a vCenter Server virtual appliance
+
+    .DESCRIPTION
+    The Set-VCSAFirewallConfig cmdlet sets the firewall configuration of a vCenter Server virtual appliance
+
+    .EXAMPLE
+    Set-VCSAFirewallConfig -Server vcsa01.sddc.lab -csvInput .\vcsa_firewall.csv
+
+    .PARAMETER Server
+    The vCenter Server virtual appliance to be have its firewall configuration set
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Server,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $csvInput
+    )
+
+    if ($Server -match $global:DefaultVIServers) {
+        $rules = @()
+
+        Import-Csv -Path $csvInput -PipelineVariable row |
+        ForEach-Object -Process {
+        $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action -InterfaceName 'nic0'
+        }
+        $body = Initialize-NetworkingFirewallInboundSetRequestBody -Rules $rules
+        Invoke-SetNetworkingFirewallInbound -NetworkingFirewallInboundSetRequestBody $body
+
+        $validateFirewall = Get-VCSAFirewallConfig -Server $Server
+        if ($validateFirewall) {
+            $validateFirewall
+        } else {
+            Write-Output "[$Server] Unable to validate vCenter Server virtual appliance firewall configuration."
+        }
+    } else {
+        Write-Output "[$Server] Not connected to vCenter Server virtual appliance."
+    }
+
+} Export-ModuleMember -Function Set-VCSAFirewallConfig
