@@ -1108,7 +1108,7 @@ Function Set-VCSAFirewallConfig {
 
         Import-Csv -Path $csvInput -PipelineVariable row |
         ForEach-Object -Process {
-        $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action -InterfaceName 'nic0'
+            $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action -InterfaceName 'nic0'
         }
         $body = Initialize-NetworkingFirewallInboundSetRequestBody -Rules $rules
         Invoke-SetNetworkingFirewallInbound -NetworkingFirewallInboundSetRequestBody $body
