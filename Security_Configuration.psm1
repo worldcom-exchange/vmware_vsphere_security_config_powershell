@@ -1100,16 +1100,27 @@ Function Set-VCSAFirewallConfig {
 
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Server,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Site,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $csvInput
     )
 
-    if ($Server -match $global:DefaultVIServers) {
+    if ($Server -match $global:DefaultVIServer.Name) {
         $rules = @()
 
         Import-Csv -Path $csvInput -PipelineVariable row |
         ForEach-Object -Process {
-            $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action -InterfaceName 'nic0'
+            $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action -InterfaceName 'nic0' | Where-Object {$row.site -match $Site -or $row.site -match "all"}
         }
+
+        foreach ($rule in $rules) {
+            if ($rule.address -match "0.0.0.0" -and $rule.policy -notmatch "accept") {
+                if ($rule -ne $rules[-1]) {
+                    Write-Output "[$Server] Input has 0.0.0.0/0 rule with $($rule.policy) as its policy. This is only permitted at the last row. Exiting."
+                    Exit
+                }
+            }
+        }
+
         $body = Initialize-NetworkingFirewallInboundSetRequestBody -Rules $rules
         Invoke-SetNetworkingFirewallInbound -NetworkingFirewallInboundSetRequestBody $body
 
