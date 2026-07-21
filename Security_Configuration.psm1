@@ -1109,7 +1109,7 @@ Function Set-VCSAFirewallConfig {
 
         Import-Csv -Path $csvInput -PipelineVariable row |
         ForEach-Object -Process {
-            $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action -InterfaceName 'nic0' | Where-Object {$row.site -match $Site -or $row.site -match "all"}
+            $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action.ToUpper() -InterfaceName 'nic0' | Where-Object {$row.site -match $Site -or $row.site -match "all"}
         }
 
         foreach ($rule in $rules) {
