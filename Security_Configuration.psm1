@@ -1138,16 +1138,22 @@ Function Set-VCSAFirewallConfig {
 Function Get-ESXiHostFirewall {
     <#
     .SYNOPSIS
-    Gets the firewall configuration of a vCenter Server virtual appliance
+    Gets the firewall configuration of an ESXi host
 
     .DESCRIPTION
-    The Get-VCSAFirewallConfig cmdlet gets the firewall configuration of a vCenter Server virtual appliance
+    The Get-ESXiHostFirewall cmdlet gets the firewall configuration of an ESXi host
 
     .EXAMPLE
-    Get-VCSAFirewallConfig -Server vcsa01.sddc.lab
+    Get-ESXiHostFirewall -ESXiHost esx01.sddc.lab
 
-    .PARAMETER Server
-    The vCenter Server virtual appliance to be queried for its firewall configuration
+    .EXAMPLE
+    Get-ESXiHostFirewall -ESXiHost esx01.sddc.lab -Ruleset sshServer
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its firewall configuration
+
+    .PARAMETER Ruleset
+    The ruleset to be queried for its firewall configuration
     #>
 
     Param (
