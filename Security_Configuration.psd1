@@ -3,7 +3,7 @@
     RootModule        = 'Security_Configuration.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.3.0'
+    ModuleVersion     = '0.3.1'
 
     # ID used to uniquely identify this module
     GUID              = 'f39c811c-44df-43ce-8e18-a6dc93e69546'

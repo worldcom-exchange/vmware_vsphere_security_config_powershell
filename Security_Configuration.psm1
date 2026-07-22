@@ -144,7 +144,6 @@ Function Get-LockdownModeExceptionUsers {
 
     $currentLockdownUsers = $getView.QueryLockdownExceptions()
     $currentLockdownUsers
-
 } Export-ModuleMember -Function Get-LockdownModeExceptionUsers
 
 Function Add-LockdownModeExceptionUser {
@@ -432,7 +431,6 @@ Function Set-EsxiUser {
                 }
             }
         } 
-
         if ($role) {
             $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
 
@@ -618,7 +616,6 @@ Function Get-TPM {
     $output | Add-Member -NotePropertyName 'TPMEnabled' -NotePropertyValue $tpmEnabled
 
     $output
-
 } Export-ModuleMember -Function Get-TPM
 
 Function Enable-TPM {
@@ -705,7 +702,6 @@ Function Get-SecureBoot {
     $output | Add-Member -NotePropertyName 'SecureBootEnforced' -NotePropertyValue $secureBootEnforcedBool
 
     $output
-
 } Export-ModuleMember -Function Get-SecureBoot
 
 Function Set-SecureBoot {
@@ -1032,7 +1028,6 @@ Function Get-ESXiHostRecoveryKey {
     } else {
         Write-Error "[$ESXiHost] ESXi host is unavailable or does not exist."
     }
-
 } Export-ModuleMember -Function Get-ESXiHostRecoveryKey
 
 Function Get-VCSAFirewallConfig {
@@ -1061,7 +1056,6 @@ Function Get-VCSAFirewallConfig {
     } else {
         Write-Error "[$Server] Not connected to vCenter Server virtual appliance."
     }
-
 } Export-ModuleMember -Function Get-VCSAFirewallConfig
 
 Function Set-VCSAFirewallConfig {
@@ -1113,7 +1107,6 @@ Function Set-VCSAFirewallConfig {
     } else {
         Write-Error "[$Server] Not connected to vCenter Server virtual appliance."
     }
-
 } Export-ModuleMember -Function Set-VCSAFirewallConfig
 
 Function Get-ESXiHostFirewall {
@@ -1152,7 +1145,6 @@ Function Get-ESXiHostFirewall {
     } else {
         Write-Error "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
     }
-
 } Export-ModuleMember -Function Get-ESXiHostFirewall
 
 Function Set-ESXiHostFirewall {
@@ -1262,7 +1254,6 @@ Function Set-ESXiHostFirewall {
     } else {
         Write-Error "[$ESXiHost] ESXi host is unavailable or does not exist."
     }
-
 } Export-ModuleMember -Function Set-ESXiHostFirewall
 
 Function Get-ESXiHostFirewallRuleset {
@@ -1308,7 +1299,6 @@ Function Get-ESXiHostFirewallRuleset {
             $output | Add-Member -NotePropertyName 'PortEnd' -NotePropertyValue $getFirewallRuleset.PortEnd
 
             $output
-
         } else {
             $getFirewall = $esxcli.network.firewall.ruleset.list.Invoke()
             $getFirewall | Select-Object Name,Enabled,AllowedIPconfigurable,EnableDisableconfigurable
