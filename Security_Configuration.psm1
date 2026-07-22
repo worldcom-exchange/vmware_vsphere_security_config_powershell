@@ -1134,3 +1134,50 @@ Function Set-VCSAFirewallConfig {
     }
 
 } Export-ModuleMember -Function Set-VCSAFirewallConfig
+
+Function Get-ESXiHostFirewall {
+    <#
+    .SYNOPSIS
+    Gets the firewall configuration of a vCenter Server virtual appliance
+
+    .DESCRIPTION
+    The Get-VCSAFirewallConfig cmdlet gets the firewall configuration of a vCenter Server virtual appliance
+
+    .EXAMPLE
+    Get-VCSAFirewallConfig -Server vcsa01.sddc.lab
+
+    .PARAMETER Server
+    The vCenter Server virtual appliance to be queried for its firewall configuration
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $false)] [ValidateNotNullOrEmpty()] [String] $Ruleset
+    )
+
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    if ($vmhost) {
+        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+        if ($Ruleset) {
+            $getFirewallRuleset = $esxcli.network.firewall.ruleset.rule.list.invoke() | Where-Object {$_.Ruleset -match $Ruleset}
+            $getFirewallRulesetAllowedIP = $esxcli.network.firewall.ruleset.allowedip.list.invoke() | Where-Object {$_.Ruleset -match $Ruleset}
+
+            $output = New-Object -TypeName PSCustomObject
+            $output | Add-Member -NotePropertyName 'Ruleset' -NotePropertyValue $getFirewallRuleset.Ruleset
+            $output | Add-Member -NotePropertyName 'AllowedIPAddresses' -NotePropertyValue ($getFirewallRulesetAllowedIP.AllowedIPAddresses -Join ",")
+            $output | Add-Member -NotePropertyName 'Direction' -NotePropertyValue $getFirewallRuleset.Direction
+            $output | Add-Member -NotePropertyName 'PortType' -NotePropertyValue $getFirewallRuleset.PortType
+            $output | Add-Member -NotePropertyName 'Protocol' -NotePropertyValue $getFirewallRuleset.Protocol
+            $output | Add-Member -NotePropertyName 'PortBegin' -NotePropertyValue ($getFirewallRuleset.PortBegin -As [int])
+            $output | Add-Member -NotePropertyName 'PortEnd' -NotePropertyValue ($getFirewallRuleset.PortEnd -As [int])
+
+            $output | Format-List
+        } else {
+            $getFirewall = $esxcli.network.firewall.ruleset.list.Invoke()
+            $getFirewall | Format-Table -Property Name,Enabled,AllowedIPConfigurable,EnableDisableConfigurable -AutoSize
+        }
+    } else {
+        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+    }
+
+} Export-ModuleMember -Function Get-ESXiHostFirewall
