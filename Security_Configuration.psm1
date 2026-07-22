@@ -1047,7 +1047,7 @@ Function Get-ESXiHostRecoveryKey {
         $output | Add-Member -NotePropertyName 'RecoveryID' -NotePropertyValue $getRecoveryKey.RecoveryID
         $output | Add-Member -NotePropertyName 'RecoveryKey' -NotePropertyValue $getRecoveryKey.Key
 
-        $output | Format-List
+        $output
     } else {
         Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
     }
@@ -1146,8 +1146,149 @@ Function Get-ESXiHostFirewall {
     .EXAMPLE
     Get-ESXiHostFirewall -ESXiHost esx01.sddc.lab
 
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its firewall configuration
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost
+)
+
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    if ($vmhost) {
+        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+        $getFirewallConfig = $esxcli.network.firewall.get.invoke()
+
+        $firewallEnabled = [System.Convert]::ToBoolean($getFirewallConfig.Enabled)
+        $firewallLoaded = [System.Convert]::ToBoolean($getFirewallConfig.Loaded)
+
+        $output = New-Object -TypeName PSCustomObject
+        $output | Add-Member -NotePropertyName 'Enabled' -NotePropertyValue $firewallEnabled
+        $output | Add-Member -NotePropertyName 'Loaded' -NotePropertyValue $firewallLoaded
+        $output | Add-Member -NotePropertyName 'DefaultAction' -NotePropertyValue $getFirewallConfig.DefaultAction
+
+        $output
+    } else {
+        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+    }
+
+} Export-ModuleMember -Function Get-ESXiHostFirewall
+
+Function Set-ESXiHostFirewall {
+    <#
+    .SYNOPSIS
+    Gets the firewall configuration of an ESXi host
+
+    .DESCRIPTION
+    The Get-ESXiHostFirewall cmdlet gets the firewall configuration of an ESXi host
+
     .EXAMPLE
-    Get-ESXiHostFirewall -ESXiHost esx01.sddc.lab -Ruleset sshServer
+    Get-ESXiHostFirewall -ESXiHost esx01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its firewall configuration
+
+    .PARAMETER Enabled
+    Defining whether the ESXi firewall should be enabled
+
+    .PARAMETER DefaultAction
+    Defining the default action for the ESXi firewall
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $false)] [ValidateSet($true, $false)] [string] $Enabled,
+        [Parameter(Mandatory = $false)] [ValidateSet("DROP", "PASS")] [String] $DefaultAction
+)
+
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    if ($vmhost) {
+        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+        $getFirewallConfig = Get-ESXiHostFirewall -ESXiHost $ESXiHost
+
+        if ($getFirewallConfig) {
+            if ($Enabled) {
+                if ($Enabled -eq $false -and $getFirewallConfig.Enabled -eq $true) {
+                    $arguments = $esxcli.network.firewall.set.CreateArgs()
+                    $arguments.enabled = $false
+
+                    $esxcli.network.firewall.set.Invoke($arguments) | Out-Null
+
+                    $getFirewallEnabled = Get-ESXiHostFirewall -ESXiHost $ESXiHost
+                    if ($getFirewallEnabled.Enabled -eq $false) {
+                        Write-Output "[$ESXiHost] ESXi host firewall was successfully disabled."
+                    } else {
+                        Write-Output "[$ESXiHost] ESXi host firewall was not successfully disabled."
+                    }
+                } elseif ($Enabled -eq $true -and $getFirewallConfig.Enabled -eq $false) {
+                    $arguments = $esxcli.network.firewall.set.CreateArgs()
+                    $arguments.enabled = $true
+
+                    $esxcli.network.firewall.set.Invoke($arguments) | Out-Null
+
+                    $getFirewallEnabled = Get-ESXiHostFirewall -ESXiHost $ESXiHost
+                    if ($getFirewallEnabled.Enabled -eq $true) {
+                        Write-Output "[$ESXiHost] ESXi host firewall was successfully enabled."
+                    } else {
+                        Write-Output "[$ESXiHost] ESXi host firewall was not successfully enabled."
+                    }                
+                } elseif ($Enabled -eq $true -and $getFirewallConfig.Enabled -eq $true) {
+                    Write-Output "[$ESXiHost] ESXi host firewall is already enabled. Skipping."
+                } elseif ($Enabled -eq $false -and $getFirewallConfig.Enabled -eq $false) {
+                    Write-Output "[$ESXiHost] ESXi host firewall is already disabled. Skipping."
+                }
+            }
+            if ($DefaultAction) {
+                if ($DefaultAction -eq "PASS" -and $getFirewallConfig.DefaultAction -eq "DROP") {
+                    $arguments = $esxcli.network.firewall.set.CreateArgs()
+                    $arguments.defaultaction = $true
+
+                    $esxcli.network.firewall.set.Invoke($arguments) | Out-Null
+
+                    $getFirewallDefaultAction = Get-ESXiHostFirewall -ESXiHost $ESXiHost
+                    if ($getFirewallDefaultAction.DefaultAction -eq "PASS") {
+                        Write-Output "[$ESXiHost] ESXi host firewall default action was successfully set to $DefaultAction."
+                    } else {
+                        Write-Output "[$ESXiHost] ESXi host firewall default action was not successfully set to $DefaultAction."
+                    }                
+                } elseif ($DefaultAction -eq "DROP" -and $getFirewallConfig.DefaultAction -eq "PASS") {
+                    $arguments = $esxcli.network.firewall.set.CreateArgs()
+                    $arguments.defaultaction = $false
+
+                    $esxcli.network.firewall.set.Invoke($arguments) | Out-Null
+
+                    $getFirewallDefaultAction = Get-ESXiHostFirewall -ESXiHost $ESXiHost
+                    if ($getFirewallDefaultAction.DefaultAction -eq "DROP") {
+                        Write-Output "[$ESXiHost] ESXi host firewall default action was successfully set to $DefaultAction."
+                    } else {
+                        Write-Output "[$ESXiHost] ESXi host firewall default action was not successfully set to $DefaultAction."
+                    }    
+                } elseif ($DefaultAction -eq "PASS" -and $getFirewallConfig.DefaultAction -eq "PASS") {
+                    Write-Output "[$ESXiHost] ESXi host firewall default action is already set to PASS. Skipping."
+                } elseif ($DefaultAction -eq "DROP" -and $getFirewallConfig.DefaultAction -eq "DROP") {
+                    Write-Output "[$ESXiHost] ESXi host firewall default action is already set to DROP. Skipping."
+                }
+            }
+        }
+    } else {
+        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+    }
+
+} Export-ModuleMember -Function Set-ESXiHostFirewall
+
+Function Get-ESXiHostFirewallRuleset {
+    <#
+    .SYNOPSIS
+    Gets the firewall configuration of an ESXi host
+
+    .DESCRIPTION
+    The Get-ESXiHostFirewallRuleset cmdlet gets the firewall configuration of an ESXi host
+
+    .EXAMPLE
+    Get-ESXiHostFirewallRuleset -ESXiHost esx01.sddc.lab
+
+    .EXAMPLE
+    Get-ESXiHostFirewallRuleset -ESXiHost esx01.sddc.lab -Ruleset sshServer
 
     .PARAMETER ESXiHost
     The ESXi host to be queried for its firewall configuration
@@ -1187,4 +1328,85 @@ Function Get-ESXiHostFirewall {
         Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
     }
 
-} Export-ModuleMember -Function Get-ESXiHostFirewall
+} Export-ModuleMember -Function Get-ESXiHostFirewallRuleset
+
+Function Set-ESXiHostFirewallRuleset {
+    <#
+    .SYNOPSIS
+    Sets the firewall configuration of an ESXi host
+
+    .DESCRIPTION
+    The Set-ESXiHostFirewall cmdlet sets the firewall configuration of an ESXi host
+
+    .EXAMPLE
+    Set-ESXiHostFirewall -ESXiHost esx01.sddc.lab
+
+    .PARAMETER ESXiHost
+    The ESXi host to be queried for its firewall configuration
+
+    .PARAMETER Ruleset
+    The ruleset to be queried for its firewall configuration
+
+    .PARAMETER AllowedIPAddresses
+    The IP addresses to be allowed to pass
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $ESXiHost,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Ruleset,
+        [Parameter(Mandatory = $false)] [ValidateNotNullOrEmpty()] [String] $AllowedIPAddresses
+    )
+
+    $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
+    if ($vmhost) {
+        $esxcli = Get-EsxCli -VMhost $ESXiHost -V2 -ErrorAction Stop
+
+        $getFirewallRuleset = Get-ESXiHostFirewallRuleset -ESXiHost $ESXiHost -Ruleset $Ruleset
+        $getFirewallConfig = Get-ESXiHostFirewall -ESXiHost $ESXiHost
+        if ($getFirewallConfig.Enabled -eq $true) {
+            Set-ESXiHostFirewall -ESXiHost $ESXiHost -Enabled $false | Out-Null
+
+            $checkFirewallConfig = Get-ESXiHostFirewall $ESXiHost
+            if ($checkFirewallConfig.Enabled -eq $false) {
+                if ($getFirewallRuleset.ruleset -eq $Ruleset) {
+                    if ($getFirewallRuleset.AllowedIPAddresses -match "all") {
+                        $arguments = $esxcli.network.firewall.ruleset.set.CreateArgs()
+                        $arguments.allowedall = $false
+                        $arguments.rulesetid = $Ruleset
+                        
+                        $esxcli.network.firewall.rulset.set.Invoke($arguments) | Out-Null
+                    }
+                    if ($AllowedIPAddresses) {
+                        $arguments = $esxcli.network.firewall.ruleset.allowedip.add.CreateArgs()
+                        $arguments.ipaddress = $AllowedIPAddresses
+                        $arguments.rulesetid = $Ruleset
+
+                        $esxcli.network.firewall.ruleset.allowedip.add.Invoke($arguments) | Out-Null
+
+                        $getFirewallRulesetAllowedIPAddresses = Get-ESXiHostFirewall -ESXiHost $ESXiHost -Ruleset $Ruleset
+                        if ($getFirewallRulesetAllowedIPAddresses.AllowedIPAddresses -contains $AllowedIPAddresses) {
+                            Write-Output "[$ESXiHost] Firewall ruleset $Ruleset has been successfully updated."
+                        } else {
+                            Write-Output "[$ESXiHost] Firewall ruleset $Ruleset has not been successfully updated."
+                        }
+                    }
+                }
+            } else {
+                Write-Output "[$ESXiHost] Unable to validate ESXi host $ESXiHost firewall was disabled."
+            }
+            if ($getFirewallConfig.Enabled -eq $true) {
+                Set-ESXiHostFirewall -ESXiHost $ESXiHost -Enabled $false | Out-Null
+
+                $checkFirewallConfigAgain = Get-ESXiHostFirewall $ESXiHost
+                if ($checkFirewallConfigAgain.Enabled -eq $false) {
+                    Write-Output "[$ESXiHost] Unable to validate ESXi host $ESXiHost firewall was re-enabled."
+                }
+            }
+        } else {
+            Write-Output "[$ESXiHost] Ruleset $Ruleset does not exist."
+        }
+    } else {
+        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+    }
+
+} Export-ModuleMember -Function Set-ESXiHostFirewallRuleset
