@@ -1100,7 +1100,7 @@ Function Set-VCSAFirewallConfig {
 
     Param (
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Server,
-        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Site,
+        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $Location,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [String] $csvInput
     )
 
@@ -1109,14 +1109,13 @@ Function Set-VCSAFirewallConfig {
 
         Import-Csv -Path $csvInput -PipelineVariable row |
         ForEach-Object -Process {
-            $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action.ToUpper() -InterfaceName 'nic0' | Where-Object {$row.site -match $Site -or $row.site -match "all"}
+            $rules += Initialize-NetworkingFirewallInboundRule -Address $row.'ip address' -Prefix $row.'subnet prefix' -Policy $row.action.ToUpper() -InterfaceName 'nic0' | Where-Object {$row.site -match $Location -or $row.site -match "all"}
         }
 
         foreach ($rule in $rules) {
             if ($rule.address -match "0.0.0.0" -and $rule.policy -notmatch "accept") {
                 if ($rule -ne $rules[-1]) {
-                    Write-Output "[$Server] Input has 0.0.0.0/0 rule with $($rule.policy) as its policy. This is only permitted at the last row. Exiting."
-                    Exit
+                    Write-Error "[$Server] Input has 0.0.0.0/0 rule with $($rule.policy) as its policy. This is only permitted at the last row."
                 }
             }
         }
