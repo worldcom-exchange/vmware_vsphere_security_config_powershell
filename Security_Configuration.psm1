@@ -105,7 +105,7 @@ Param (
     $currentLevel = (Get-LockdownMode -ESXiHost $ESXiHost).LockdownMode
 
     if ($currentLevel -eq $lockdownLevel) {
-        Write-Output "[$ESXiHost] Lockdown Mode level already set to $lockdownLevel. Skipping."
+        Write-Error "[$ESXiHost] Lockdown Mode level is already set to $lockdownLevel."
     } else {
         $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
         $lockdownMode = Get-View (Get-View -ViewType HostSystem -Filter @{"Name"="$VMhost"}).ConfigManager.HostAccessManager
@@ -115,8 +115,7 @@ Param (
         if ($validateLevel -eq $lockdownLevel) {
             Write-Output "[$ESXiHost] Lockdown Mode level set to $lockdownLevel successfully."
         } else {
-            Write-Output "[$ESXiHost] Lockdown Mode level was not set to $lockdownLevel successfully."
-            Write-Output "[$ESXiHost] Current value: $validateLevel"
+            Write-Error "[$ESXiHost] Lockdown Mode level was not set to $lockdownLevel successfully."
         }
     }
 } Export-ModuleMember -Function Set-LockdownMode
@@ -183,7 +182,7 @@ Function Add-LockdownModeExceptionUser {
     if ($checkExceptionUsers -contains $userName) {
         Write-Output "[$ESXiHost] User $userName successfully added to the exception user list."
     } else {
-        Write-Output "[$ESXiHost] User $userName was not successfully added to the exception user list."
+        Write-Error "[$ESXiHost] User $userName was not successfully added to the exception user list."
     }
 } Export-ModuleMember -Function Add-LockdownModeExceptionUser
 
@@ -223,7 +222,7 @@ Function Remove-LockdownModeExceptionUser {
     if ($checkExceptionUsers -notcontains $userName) {
         Write-Output "[$ESXiHost] User $userName successfully removed to the exception user list."
     } else {
-        Write-Output "[$ESXiHost] User $userName was not successfully removed to the exception user list."
+        Write-Error "[$ESXiHost] User $userName was not successfully removed to the exception user list."
     }
 } Export-ModuleMember -Function Remove-LockdownModeExceptionUser
 
@@ -288,10 +287,10 @@ Function New-EsxiUser {
             $output = Get-EsxiUser -ESXiHost $ESXiHost -userName $userName
             $output
         } else {
-            Write-Output "[$ESXiHost] $userName was not created and configured successfully."
+            Write-Error "[$ESXiHost] $userName was not created and configured successfully."
         }
     } else {
-        Write-Output "[$ESXiHost] $userName already exists. Skipping."
+        Write-Error "[$ESXiHost] $userName already exists. Skipping."
     }
 }
 Export-ModuleMember -Function New-EsxiUser
@@ -396,7 +395,7 @@ Function Set-EsxiUser {
     if ($accountInfo) {
         if ($shellAccess -match "true") {
             if ($accountInfo.shellaccess -eq $true) { 
-                Write-Output "[$ESXiHost] User $userName already has shell access. Skipping."
+                Write-Error "[$ESXiHost] User $userName already has shell access."
             } elseif ($accountInfo.shellaccess -eq $false) {
                 $arguments = $esxcli.system.account.set.CreateArgs()
                 $arguments.id = $userName
@@ -408,9 +407,9 @@ Function Set-EsxiUser {
 
                 $checkShellAccess = $esxcli.system.account.list.Invoke() | Where-Object {$_.UserID -eq $userName}
                 if ($checkShellAccess.shellaccess -eq $true) {
-                    "[$ESXiHost] ESXi shell access for user $userName was successfully enabled."
+                    Write-Output "[$ESXiHost] ESXi shell access for user $userName was successfully enabled."
                 } else {
-                    "[$ESXiHost] ESXi shell access for user $userName was not successfully enabled."
+                    Write-Error "[$ESXiHost] ESXi shell access for user $userName was not successfully enabled."
                 }
             }
         } elseif ($shellAccess -match "false") {
@@ -429,7 +428,7 @@ Function Set-EsxiUser {
                 if ($checkShellAccess.shellaccess -eq $false) {
                     Write-Output "[$ESXiHost] ESXi shell access for user $userName was successfully disabled."
                 } else {
-                    Write-Output "[$ESXiHost] ESXi shell access for user $userName was not successfully disabled."
+                    Write-Error "[$ESXiHost] ESXi shell access for user $userName was not successfully disabled."
                 }
             }
         } 
@@ -453,13 +452,13 @@ Function Set-EsxiUser {
                 if ($checkNewRole.Role -eq $role) {
                     Write-Output "[$ESXiHost] $userName was successfully assigned the role $role."
                 } else {
-                    Write-Output "[$ESXiHost] $userName was not successfully assigned the role $role."
+                    Write-Error "[$ESXiHost] $userName was not successfully assigned the role $role."
                 }
             }
         }
     }
     else {
-        Write-Output "[$ESXiHost] User $userName does not exist."
+        Write-Error "[$ESXiHost] User $userName does not exist."
     }
 } Export-ModuleMember -Function Set-EsxiUser
 
@@ -504,15 +503,15 @@ Function Remove-EsxiUser {
             if ($checkAccountRemoved -match "User $userName does not exist") {
                 Write-Output "[$ESXiHost] User $userName was removed successfully."
             } else {
-                Write-Output "[$ESXiHost] User $userName was not removed successfully."
+                Write-Error "[$ESXiHost] User $userName was not removed successfully."
             }
         } elseif ($getConfirmation -eq "F") {
             Write-Output "[$ESXiHost] User $userName was not removed."
         } else {
-            Write-Output "[$ESXiHost] Invalid input. User $userName was not removed."
+            Write-Error "[$ESXiHost] Invalid input. User $userName was not removed."
         }
     } else {
-        Write-Output "[$ESXiHost] User $userName does not exist."
+        Write-Error "[$ESXiHost] User $userName does not exist."
     }
 }
 Export-ModuleMember -Function Remove-EsxiUser
@@ -570,10 +569,10 @@ Function Reset-EsxiUserPassword {
         if ($invokePasswordReset -eq $true) {
             Write-Output "[$ESXiHost] $userName password was successfully reset."
         } else {
-            Write-Output "[$ESXiHost] $userName password was not reset successfully."
+            Write-Error "[$ESXiHost] $userName password was not reset successfully."
         }
     } else {
-        Write-Output "[$ESXiHost] $userName does not exist. Skipping."
+        Write-Error "[$ESXiHost] $userName does not exist. Skipping."
     }
 }
 Export-ModuleMember -Function Reset-EsxiUserPassword
@@ -664,7 +663,7 @@ Function Enable-TPM {
             if ($checkTpm -eq $true) {
                 Write-Host "[$ESXiHost] TPM enabled successfully."
             } else {
-                Write-Host "[$ESXiHost] TPM was not enabled successfully."
+                Write-Error "[$ESXiHost] TPM was not enabled successfully."
             }
         }
     }
@@ -696,16 +695,14 @@ Function Get-SecureBoot {
 
     $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
     $secureBootEnforced = ($esxcli.system.settings.encryption.get.Invoke()).requiresecureboot
-    if ($secureBootEnforced -match "true") {
-        $secureBootEnforced = $true
-    } elseif ($secureBootEnforced -match "false") {
-        $secureBootEnforced = $false
-    }
+
+    $secureBootSupportedBool = [System.Convert]::ToBoolean($secureBootSupported)
+    $secureBootEnforcedBool = [System.Convert]::ToBoolean($secureBootEnforced)
 
     $output = New-Object -TypeName PSCustomObject
     $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
-    $output | Add-Member -NotePropertyName 'SecureBootSupported' -NotePropertyValue $secureBootSupported
-    $output | Add-Member -NotePropertyName 'SecureBootEnforced' -NotePropertyValue $secureBootEnforced
+    $output | Add-Member -NotePropertyName 'SecureBootSupported' -NotePropertyValue $secureBootSupportedBool
+    $output | Add-Member -NotePropertyName 'SecureBootEnforced' -NotePropertyValue $secureBootEnforcedBool
 
     $output
 
@@ -736,8 +733,7 @@ Function Set-SecureBoot {
 
     $checkLockdownMode = Get-LockdownMode -ESXiHost $ESXiHost
     if ($checkLockdownMode.LockdownMode -eq "lockdownNormal" -or $checkLockdownMode.LockdownMode -eq "lockdownStrict") {
-        Write-Output "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
-        Break
+        Write-Error "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
     } elseif ($checkLockdownMode.LockdownMode -eq "lockdownDisabled") {
         $secureBoot = Get-SecureBoot -ESXiHost $ESXiHost
         
@@ -757,7 +753,7 @@ Function Set-SecureBoot {
                 if ($checkSecureBoot.SecureBootEnforced -eq $true) {
                     Write-Output "[$ESXiHost] SecureBoot policy successfully set to enforced."
                 } else {
-                    Write-Output "[$ESXiHost] SecureBoot policy was not successfully set to enforced."
+                    Write-Error "[$ESXiHost] SecureBoot policy was not successfully set to enforced."
                 }
             } elseif ($Enforced -match "False" -and $secureBoot.SecureBootEnforced -eq $false) {
                 Write-Output "[$ESXiHost] SecureBoot policy already set to unenforced. Skipping."
@@ -773,11 +769,11 @@ Function Set-SecureBoot {
                 if ($checkSecureBoot.SecureBootEnforced -eq $false) {
                     Write-Output "[$ESXiHost] SecureBoot policy successfully set to disabled."
                 } else {
-                    Write-Output "[$ESXiHost] SecureBoot policy was not successfully set to disabled."
+                    Write-Error "[$ESXiHost] SecureBoot policy was not successfully set to disabled."
                 }
             }
         } elseif ($secureBoot.SecureBootSupported -eq $false) {
-            Write-Output "[$ESXiHost] SecureBoot is not supported on this ESXi host. Skipping."
+            Write-Error "[$ESXiHost] SecureBoot is not supported on this ESXi host."
         }
     }
 } Export-ModuleMember -Function Set-SecureBoot
@@ -808,22 +804,13 @@ Function Get-ExecInstalledOnlyKernel {
     $arguments.option = "execInstalledOnly"     
     $execInstalledOnly = $esxcli.system.settings.kernel.list.Invoke($arguments)
 
-    if ($execInstalledOnly.Configured -eq "TRUE") {
-        $execInstalledOnlyConfigured = $true
-    } elseif ($execInstalledOnly.Configured -eq "FALSE") {
-        $execInstalledOnlyConfigured = $false
-    }
-
-    if ($execInstalledOnly.Runtime -eq "TRUE") {
-        $execInstalledOnlyRuntime = $true
-    } elseif ($execInstalledOnly.Runtime -eq "FALSE") {
-        $execInstalledOnlyRuntime = $false
-    }
+    $execInstalledOnlyConfiguredBool = [System.Convert]::ToBoolean($execInstalledOnly.Configured)
+    $execInstalledOnlyRuntimeBool = [System.Convert]::ToBoolean($execInstalledOnly.Runtime)
 
     $output = New-Object -TypeName PSCustomObject
     $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
-    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyKernelConfigured' -NotePropertyValue $execInstalledOnlyConfigured
-    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyKernelRuntime' -NotePropertyValue $execInstalledOnlyRuntime
+    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyKernelConfigured' -NotePropertyValue $execInstalledOnlyConfiguredBool
+    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyKernelRuntime' -NotePropertyValue $execInstalledOnlyRuntimeBool
 
     $output
 } Export-ModuleMember -Function Get-ExecInstalledOnlyKernel
@@ -853,18 +840,17 @@ Function Set-ExecInstalledOnlyKernel {
 
     $checkLockdownMode = Get-LockdownMode -ESXiHost $ESXiHost
     if ($checkLockdownMode.LockdownMode -eq "lockdownNormal" -or $checkLockdownMode.LockdownMode -eq "lockdownStrict") {
-        Write-Output "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
-        Break
+        Write-Error "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
     } elseif ($checkLockdownMode.LockdownMode -eq "lockdownDisabled") {
         $execInstalledOnlyKernel = Get-ExecInstalledOnlyKernel -ESXiHost $ESXiHost
         if (!$execInstalledOnlyKernel -or !$execInstalledOnlyKernel.ESXiHost) {
-            Write-Output "[$ESXiHost] ESXi host was not found. Skipping."
+            Write-Error "[$ESXiHost] ESXi host was not found."
         } else {
             if ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
                 if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $true) {
                     Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled and the runtime value is set to True. Skipping."
                 } else {
-                    Write-Output "[$ESXiHost] ExecInstalledOnly has already been enabled but the runtime value is set to False. Please reboot the ESXi host."
+                    Write-Warning "[$ESXiHost] ExecInstalledOnly has already been enabled but the runtime value is set to False. Please reboot the ESXi host."
                 }
             } elseif ($Enabled -match "True" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
                 $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
@@ -880,13 +866,13 @@ Function Set-ExecInstalledOnlyKernel {
                 if ($checkExecInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
                     Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully enabled. Please reboot the ESXi host."
                 } else {
-                    Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully enabled."
+                    Write-Error "[$ESXiHost] ExecInstalledOnly has not been successfully enabled."
                 }
             } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
                 if ($execInstalledOnlyKernel.ExecInstalledOnlyKernelRuntime -eq $false) {
                     Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled and the runtime value is set to False. Skipping."
                 } else {
-                    Write-Output "[$ESXiHost] ExecInstalledOnly has already been disabled but the runtime value is set to True. Please reboot the ESXi host."
+                    Write-Warning "[$ESXiHost] ExecInstalledOnly has already been disabled but the runtime value is set to True. Please reboot the ESXi host."
                 } 
             } elseif ($Enabled -match "False" -and $execInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $true) {
                 $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
@@ -902,7 +888,7 @@ Function Set-ExecInstalledOnlyKernel {
                 if ($checkExecInstalledOnlyKernel.ExecInstalledOnlyKernelConfigured -eq $false) {
                     Write-Output "[$ESXiHost] ExecInstalledOnly has been successfully disabled. Please reboot the ESXi host."
                 } else {
-                    Write-Output "[$ESXiHost] ExecInstalledOnly has not been successfully disabled."
+                    Write-Error "[$ESXiHost] ExecInstalledOnly has not been successfully disabled."
                 }        
             }
         }
@@ -933,15 +919,11 @@ Function Get-ExecInstalledOnlyPolicy {
 
     $execInstalledOnlyPolicy = $esxcli.system.settings.encryption.get.Invoke()
 
-    if ($execInstalledOnlyPolicy.RequireExecutablesOnlyFromInstalledVIBs -match "true") {
-        $execInstalledOnlyPolicyOutput = $true
-    } elseif ($execInstalledOnlyPolicy.RequireExecutablesOnlyFromInstalledVIBs -match "false") {
-        $execInstalledOnlyPolicyOutput = $false
-    }
+    $execInstalledOnlyPolicydBool = [System.Convert]::ToBoolean($execInstalledOnlyPolicy.RequireExecutablesOnlyFromInstalledVIBs)
 
     $output = New-Object -TypeName PSCustomObject
     $output | Add-Member -NotePropertyName 'ESXiHost' -NotePropertyValue $vmhost.Name
-    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyPolicy' -NotePropertyValue $execInstalledOnlyPolicyOutput
+    $output | Add-Member -NotePropertyName 'ExecInstalledOnlyPolicy' -NotePropertyValue $execInstalledOnlyPolicydBool
 
     $output
 } Export-ModuleMember -Function Get-ExecInstalledOnlyPolicy
@@ -971,15 +953,14 @@ Function Set-ExecInstalledOnlyPolicy {
 
     $checkLockdownMode = Get-LockdownMode -ESXiHost $ESXiHost
     if ($checkLockdownMode.LockdownMode -eq "lockdownNormal" -or $checkLockdownMode.LockdownMode -eq "lockdownStrict") {
-        Write-Output "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
-        Break
+        Write-Error "[$ESXiHost]  Lockdown Mode is set to $($checkLockdownMode.LockdownMode). Please disable Lockdown Mode and try again."
     } elseif ($checkLockdownMode.LockdownMode -eq "lockdownDisabled") {
         $execInstalledOnlyPolicy = Get-ExecInstalledOnlyPolicy -ESXiHost $ESXiHost
         if (!$execInstalledOnlyPolicy -or !$execInstalledOnlyPolicy.ESXiHost) {
-            Write-Output "[$ESXiHost] ESXi host was not found. Skipping."
+            Write-Error "[$ESXiHost] ESXi host was not found."
         } else {
             if ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
-                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been enabled. Skipping."
+                    Write-Error "[$ESXiHost] ExecInstalledOnly policy has already been enabled."
             } elseif ($Enabled -match "True" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
                 $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
                 $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
@@ -993,10 +974,10 @@ Function Set-ExecInstalledOnlyPolicy {
                 if ($checkExecInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
                     Write-Output "[$ESXiHost] ExecInstalledOnly policy has been successfully enabled. Please reboot the ESXi host."
                 } else {
-                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has not been successfully enabled."
+                    Write-Error "[$ESXiHost] ExecInstalledOnly policy has not been successfully enabled."
                 }
             } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
-                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has already been disabled. Skipping."
+                    Write-Error "[$ESXiHost] ExecInstalledOnly policy has already been disabled."
             } elseif ($Enabled -match "False" -and $execInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $true) {
                 $vmhost = Get-VMhost -Name $ESXiHost -ErrorAction Stop | Where-Object {$_.ConnectionState -eq "Connected" -or $_.ConnectionState -eq "Maintenance"}
                 $esxcli = Get-EsxCli -VMhost $vmhost.Name -V2 -ErrorAction Stop
@@ -1010,7 +991,7 @@ Function Set-ExecInstalledOnlyPolicy {
                 if ($checkExecInstalledOnlyPolicy.ExecInstalledOnlyPolicy -eq $false) {
                     Write-Output "[$ESXiHost] ExecInstalledOnly policy has been successfully disabled. Please reboot the ESXi host."
                 } else {
-                    Write-Output "[$ESXiHost] ExecInstalledOnly policy has not been successfully disabled."
+                    Write-Error "[$ESXiHost] ExecInstalledOnly policy has not been successfully disabled."
                 }        
             }
         }
@@ -1049,7 +1030,7 @@ Function Get-ESXiHostRecoveryKey {
 
         $output
     } else {
-        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+        Write-Error "[$ESXiHost] ESXi host is unavailable or does not exist."
     }
 
 } Export-ModuleMember -Function Get-ESXiHostRecoveryKey
@@ -1078,7 +1059,7 @@ Function Get-VCSAFirewallConfig {
 
         $firewall
     } else {
-        Write-Output "[$Server] Not connected to vCenter Server virtual appliance."
+        Write-Error "[$Server] Not connected to vCenter Server virtual appliance."
     }
 
 } Export-ModuleMember -Function Get-VCSAFirewallConfig
@@ -1127,10 +1108,10 @@ Function Set-VCSAFirewallConfig {
         if ($validateFirewall) {
             $validateFirewall
         } else {
-            Write-Output "[$Server] Unable to validate vCenter Server virtual appliance firewall configuration."
+            Write-Error "[$Server] Unable to validate vCenter Server virtual appliance firewall configuration."
         }
     } else {
-        Write-Output "[$Server] Not connected to vCenter Server virtual appliance."
+        Write-Error "[$Server] Not connected to vCenter Server virtual appliance."
     }
 
 } Export-ModuleMember -Function Set-VCSAFirewallConfig
@@ -1169,7 +1150,7 @@ Function Get-ESXiHostFirewall {
 
         $output
     } else {
-        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+        Write-Error "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
     }
 
 } Export-ModuleMember -Function Get-ESXiHostFirewall
@@ -1220,7 +1201,7 @@ Function Set-ESXiHostFirewall {
                         
                         $getFirewallEnabled
                     } else {
-                        Write-Output "[$ESXiHost] ESXi host firewall was not successfully disabled."
+                        Write-Error "[$ESXiHost] ESXi host firewall was not successfully disabled."
                     }
                 } elseif ($Enabled -eq $true -and $getFirewallConfig.Enabled -eq $false) {
                     $arguments = $esxcli.network.firewall.set.CreateArgs()
@@ -1234,12 +1215,12 @@ Function Set-ESXiHostFirewall {
 
                         $getFirewallEnabled
                     } else {
-                        Write-Output "[$ESXiHost] ESXi host firewall was not successfully enabled."
+                        Write-Error "[$ESXiHost] ESXi host firewall was not successfully enabled."
                     }                
                 } elseif ($Enabled -eq $true -and $getFirewallConfig.Enabled -eq $true) {
-                    Write-Output "[$ESXiHost] ESXi host firewall is already enabled. Skipping."
+                    Write-Error "[$ESXiHost] ESXi host firewall is already enabled."
                 } elseif ($Enabled -eq $false -and $getFirewallConfig.Enabled -eq $false) {
-                    Write-Output "[$ESXiHost] ESXi host firewall is already disabled. Skipping."
+                    Write-Error "[$ESXiHost] ESXi host firewall is already disabled."
                 }
             }
             if ($DefaultAction) {
@@ -1255,7 +1236,7 @@ Function Set-ESXiHostFirewall {
                 
                         $getFirewallDefaultAction
                     } else {
-                        Write-Output "[$ESXiHost] ESXi host firewall default action was not successfully set to $DefaultAction."
+                        Write-Error "[$ESXiHost] ESXi host firewall default action was not successfully set to $DefaultAction."
                     }                
                 } elseif ($DefaultAction -eq "DROP" -and $getFirewallConfig.DefaultAction -eq "PASS") {
                     $arguments = $esxcli.network.firewall.set.CreateArgs()
@@ -1269,17 +1250,17 @@ Function Set-ESXiHostFirewall {
                         
                         $getFirewallDefaultAction
                     } else {
-                        Write-Output "[$ESXiHost] ESXi host firewall default action was not successfully set to $DefaultAction."
+                        Write-Error "[$ESXiHost] ESXi host firewall default action was not successfully set to $DefaultAction."
                     }    
                 } elseif ($DefaultAction -eq "PASS" -and $getFirewallConfig.DefaultAction -eq "PASS") {
-                    Write-Output "[$ESXiHost] ESXi host firewall default action is already set to PASS. Skipping."
+                    Write-Error "[$ESXiHost] ESXi host firewall default action is already set to PASS."
                 } elseif ($DefaultAction -eq "DROP" -and $getFirewallConfig.DefaultAction -eq "DROP") {
-                    Write-Output "[$ESXiHost] ESXi host firewall default action is already set to DROP. Skipping."
+                    Write-Error "[$ESXiHost] ESXi host firewall default action is already set to DROP."
                 }
             }
         }
     } else {
-        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+        Write-Error "[$ESXiHost] ESXi host is unavailable or does not exist."
     }
 
 } Export-ModuleMember -Function Set-ESXiHostFirewall
@@ -1287,10 +1268,10 @@ Function Set-ESXiHostFirewall {
 Function Get-ESXiHostFirewallRuleset {
     <#
     .SYNOPSIS
-    Gets the firewall configuration of an ESXi host
+    Gets the configuration of an ESXi host firewall ruleset
 
     .DESCRIPTION
-    The Get-ESXiHostFirewallRuleset cmdlet gets the firewall configuration of an ESXi host
+    The Get-ESXiHostFirewallRuleset cmdlet gets the configuration of an ESXi host firewall ruleset
 
     .EXAMPLE
     Get-ESXiHostFirewallRuleset -ESXiHost esx01.sddc.lab
@@ -1333,9 +1314,8 @@ Function Get-ESXiHostFirewallRuleset {
             $getFirewall | Select-Object Name,Enabled,AllowedIPconfigurable,EnableDisableconfigurable
         }
     } else {
-        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+        Write-Error "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
     }
-
 } Export-ModuleMember -Function Get-ESXiHostFirewallRuleset
 
 Function Set-ESXiHostFirewallRuleset {
@@ -1344,19 +1324,25 @@ Function Set-ESXiHostFirewallRuleset {
     Sets the firewall configuration of an ESXi host
 
     .DESCRIPTION
-    The Set-ESXiHostFirewall cmdlet sets the firewall configuration of an ESXi host
+    The Set-ESXiHostFirewallRuleset cmdlet sets the firewall configuration of an ESXi host
 
     .EXAMPLE
-    Set-ESXiHostFirewall -ESXiHost esx01.sddc.lab
+    Set-ESXiHostFirewallRuleset -ESXiHost esx01.sddc.lab -Ruleset sshServer -AddSubnet 192.168.0.0/16
+
+    .EXAMPLE
+    Set-ESXiHostFirewallRuleset -ESXiHost esx01.sddc.lab -Ruleset sshServer -RemoveSubnet 192.168.0.0/16    
 
     .PARAMETER ESXiHost
     The ESXi host to be queried for its firewall configuration
 
     .PARAMETER Ruleset
-    The ruleset to be queried for its firewall configuration
+    The ESXi host firewall ruleset to be configured
 
-    .PARAMETER AllowedIPAddresses
-    The IP addresses to be allowed to pass
+    .PARAMETER AddSubnet
+    The IP subnet to add to the defined ESXi host firewall ruleset  
+
+    .PARAMETER RemoveSubnet
+    The IP subnet to remove from the defined ESXi host firewall ruleset  
     #>
 
     Param (
@@ -1406,11 +1392,11 @@ Function Set-ESXiHostFirewallRuleset {
 
                     $getFirewallRulesetAllowedIPAddresses = Get-ESXiHostFirewallRuleset -ESXiHost $ESXiHost -Ruleset $Ruleset
                     if ($getFirewallRulesetAllowedIPAddresses.AllowedIPAddresses -match $AddSubnet) {
-                        Write-Output "[$ESXiHost] Firewall ruleset $Ruleset has been successfully updated."
+                        Write-Output "[$ESXiHost] Subnet $AddSubnet has been successfully added to the ESXi host firewall ruleset $Ruleset."
 
                         $getFirewallRulesetAllowedIPAddresses
                     } else {
-                        Write-Output "[$ESXiHost] Firewall ruleset $Ruleset has not been successfully updated."
+                        Write-Error "[$ESXiHost] Firewall ruleset $Ruleset has not been successfully updated."
                     }
                 }
             }
@@ -1428,11 +1414,11 @@ Function Set-ESXiHostFirewallRuleset {
 
                     $getFirewallRulesetAllowedIPAddresses = Get-ESXiHostFirewallRuleset -ESXiHost $ESXiHost -Ruleset $Ruleset
                     if ($getFirewallRulesetAllowedIPAddresses.AllowedIPAddresses -notmatch $RemoveSubnet) {
-                        Write-Output "[$ESXiHost] Firewall ruleset $Ruleset has been successfully updated."
+                        Write-Output "Subnet $RemoveSubnet has been successfully removed from the ESXi host firewall ruleset $Ruleset"
 
                         $getFirewallRulesetAllowedIPAddresses
                     } else {
-                        Write-Output "[$ESXiHost] Firewall ruleset $Ruleset has not been successfully updated."
+                        Write-Error "[$ESXiHost] Firewall ruleset $Ruleset has not been successfully updated."
                     }
                 }
             }
@@ -1441,14 +1427,13 @@ Function Set-ESXiHostFirewallRuleset {
 
                 $checkFirewallConfigAgain = Get-ESXiHostFirewall $ESXiHost
                 if ($checkFirewallConfigAgain.Enabled -eq $false) {
-                    Write-Output "[$ESXiHost] Unable to validate ESXi host $ESXiHost firewall was re-enabled."
+                    Write-Error "[$ESXiHost] Unable to validate ESXi host $ESXiHost firewall was re-enabled."
                 }
             }
         } else {
             Write-Output "[$ESXiHost] ESXi host firewall ruleset does not exist. Skipping."
         }
     } else {
-        Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."
+        Write-Error "[$ESXiHost] ESXi host is unavailable or does not exist."
     }
-
 } Export-ModuleMember -Function Set-ESXiHostFirewallRuleset
