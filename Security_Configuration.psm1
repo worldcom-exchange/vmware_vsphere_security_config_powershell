@@ -1168,13 +1168,14 @@ Function Get-ESXiHostFirewall {
             $output | Add-Member -NotePropertyName 'Direction' -NotePropertyValue $getFirewallRuleset.Direction
             $output | Add-Member -NotePropertyName 'PortType' -NotePropertyValue $getFirewallRuleset.PortType
             $output | Add-Member -NotePropertyName 'Protocol' -NotePropertyValue $getFirewallRuleset.Protocol
-            $output | Add-Member -NotePropertyName 'PortBegin' -NotePropertyValue ($getFirewallRuleset.PortBegin -As [int])
-            $output | Add-Member -NotePropertyName 'PortEnd' -NotePropertyValue ($getFirewallRuleset.PortEnd -As [int])
+            $output | Add-Member -NotePropertyName 'PortBegin' -NotePropertyValue $getFirewallRuleset.PortBegin
+            $output | Add-Member -NotePropertyName 'PortEnd' -NotePropertyValue $getFirewallRuleset.PortEnd
 
-            $output | Format-List
+            $output
+
         } else {
             $getFirewall = $esxcli.network.firewall.ruleset.list.Invoke()
-            $getFirewall | Format-Table -Property Name,Enabled,AllowedIPConfigurable,EnableDisableConfigurable -AutoSize
+            $getFirewall | Select-Object Name,Enabled,AllowedIPconfigurable,EnableDisableconfigurable
         }
     } else {
         Write-Output "[$ESXiHost] ESXi host is unavailable or does not exist. Skipping."

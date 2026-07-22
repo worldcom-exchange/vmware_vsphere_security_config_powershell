@@ -3,7 +3,7 @@
     RootModule        = 'Security_Configuration.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.2.3'
+    ModuleVersion     = '0.2.4'
 
     # ID used to uniquely identify this module
     GUID              = 'f39c811c-44df-43ce-8e18-a6dc93e69546'
@@ -18,7 +18,7 @@
     Description       = 'PowerShell Module for Security Configuration'
 
     # Minimum version of the PowerShell engine required by this module
-    PowerShellVersion = '*'
+    #PowerShellVersion = '*'
 
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
     FunctionsToExport = '*'
